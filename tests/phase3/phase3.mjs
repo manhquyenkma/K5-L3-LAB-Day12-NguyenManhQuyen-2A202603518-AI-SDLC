@@ -34,9 +34,9 @@ function test(name, fn) {
 
 console.log('Phase 3 (TICKET-03, Contract v1.2) — Fuel, Drain, Dawn Win & Dynamic Capacity');
 
-test('contract-v1.2: game.contract.json khớp tuning v1.2, thời lượng 240/270/300 s, scenario lit mặc định fuel=100', () => {
+test('contract-v1.2+: game.contract.json khớp tuning v1.2/v1.3, thời lượng 240/270/300 s, scenario lit mặc định fuel=100', () => {
   const c = JSON.parse(readFileSync(join(root, 'game.contract.json'), 'utf8'));
-  assert.equal(c.contract_version, '1.2');
+  assert.equal(c.contract_version, '1.3'); // [TICKET-04] nâng từ 1.2 -> 1.3, giữ nguyên toàn bộ tuning v1.2
   assert.deepEqual(c.tuning, T);
   assert.equal(T.fuel_max, 100);
   assert.equal(T.fuel_decay_per_s, 1.0);

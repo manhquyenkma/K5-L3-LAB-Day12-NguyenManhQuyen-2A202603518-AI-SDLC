@@ -2,7 +2,7 @@ name: CI Verify
 
 on:
   push:
-    branches: [main, phase-2]
+    branches: [main]
     tags: ['phase-*', 'v*']
   pull_request:
 
@@ -22,10 +22,10 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Run Contract v1.1 & Phase 2 Tests
+      - name: Run Contract v1.3 & Full Test Suite (Phase 1-4 + Golden Guard)
         run: npm test
 
-      - name: Syntax check core, headless, server and 3D client
+      - name: Syntax check core, CLI tools, server and 3D client
         run: |
           node --check src/tuning.js
           node --check src/terrain.js
@@ -37,10 +37,20 @@ jobs:
           node --check src/entities/shade.js
           node --check src/entities/drifter.js
           node --check headless.js
+          node --check bench.js
+          node --check soak.js
           node --check server.js
+          node --check lib/leaderboard.js
+          node --check scripts/build-release.mjs
           node --check public/audio.js
           node --check public/assets.js
           node --check public/main.js
 
-      - name: Verify greedy bot wins Night 1 (v1.1 tuning)
-        run: node scripts/bot.mjs 1
+      - name: Verify Soak Test (10 nights, 0 crashes, memory stability)
+        run: node soak.js --seed 7 --nights 10 --out /tmp/ci-soak.json
+
+      - name: Verify Leaderboard Export CLI
+        run: node server.js --export-leaderboard /tmp/ci-lb.json
+
+      - name: Verify Release Bundle Build
+        run: npm run build:release

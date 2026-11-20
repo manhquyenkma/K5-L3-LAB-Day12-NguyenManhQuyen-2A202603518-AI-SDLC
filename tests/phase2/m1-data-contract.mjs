@@ -16,9 +16,9 @@ function test(name, fn) {
 
 console.log('Phase 2 M1 — Tuning v1.1, Contract & 3 Nights Data');
 
-test('game.contract.json là v1.2, đúng team và khớp toàn bộ số chuẩn TICKET-03', () => {
+test('game.contract.json là v1.3, đúng team và khớp toàn bộ số chuẩn TICKET-03/04', () => {
   const c = JSON.parse(readFileSync(join(root, 'game.contract.json'), 'utf8'));
-  assert.equal(c.contract_version, '1.2'); // [TICKET-03] nâng từ 1.1 -> 1.2
+  assert.equal(c.contract_version, '1.3'); // [TICKET-04] nâng từ 1.2 -> 1.3 (thêm bench_cmd, soak_cmd)
   assert.equal(c.team, '2A202603518-nguyen-manh-quyen');
   assert.deepEqual(c.tuning, T);
   assert.equal(T.player_speed, 6);

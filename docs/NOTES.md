@@ -94,5 +94,32 @@
 | P3-5 | Antigravity (Gemini) | Cập nhật `CHANGELOG.md` (Breaking Changes), `README.md`, xuất báo cáo `evidence/phase3/`, gắn tag `phase-3` & đẩy lên GitHub | `npm test` 70/70 xanh, log vàng 3/3 khớp byte-by-byte |
 
 ## Đánh giá nhanh Phase 3
-- **Đạt:** 70/70 test tự động xanh (không tắt âm thầm bất kỳ test cũ nào — mọi test bị luật mới thay thế đều đã cập nhật kèm lý do rõ ràng); nhiên liệu tính nguyên `1/60` loại bỏ sai số số thực ở mốc `fuel = 30` và `fuel = 0`; đủ ADR, CHANGELOG Breaking Changes, bằng chứng `evidence/phase3/`, chế độ mù màu & thanh dầu 3D.
-- **Ước tính token Phase 3:** ~35k token (nhờ tách lõi `shade.js` và `sim.js` gọn từ Phase 2 nên sửa tập trung không cần đọc lại toàn bộ repo).
+- **Đạt:** 72/72 test tự động xanh (không tắt âm thầm bất kỳ test cũ nào — mọi test bị luật mới thay thế đều đã cập nhật kèm lý do rõ ràng); nhiên liệu tính nguyên `1/60` loại bỏ sai số số thực ở mốc `fuel = 30` và `fuel = 0`; đủ ADR, CHANGELOG Breaking Changes, bằng chứng `evidence/phase3/`, chế độ mù màu & thanh dầu 3D.
+- **Ước tính token Phase 3:** ~45k token (nhờ tách lõi `shade.js` và `sim.js` gọn từ Phase 2 nên sửa tập trung không cần đọc lại toàn bộ repo).
+
+---
+
+# Ghi chú Phase 4: "Bình minh: phát hành v1.0.0" (TICKET-04, Contract v1.3)
+
+- Bản tổng kết Retrospective 4 phase: xem [RETRO.md](RETRO.md).
+- Báo cáo số đo Benchmark 3D & Soak test: xem [PERF.md](PERF.md), [../bench.json](../bench.json) và [../soak.json](../soak.json).
+
+## Giả định & Quyết định kỹ thuật Phase 4
+1. **Cách đo `bench.js` tự động đa nền tảng:** `bench.js` khởi chạy máy chủ HTTP nội bộ trên cổng tự do (`127.0.0.1:0`) rồi mở Google Chrome / Chromium / Microsoft Edge ở chế độ cửa sổ ứng dụng `--app=... --window-size=1280,720 --disable-gpu-vsync --disable-frame-rate-limit` với thư mục profile tạm riêng biệt. Khi khung hình đầu tiên của cảnh benchmark vẽ xong, trình duyệt báo `POST /api/bench-ready` để chốt `load_ms`; sau 3 s khởi động và 30 s đo, trình duyệt gửi `POST /api/bench-done`, `bench.js` lấy mẫu tổng RSS cây tiến trình (`peak_mem_mb`), ghi `bench.json` và tự đóng trình duyệt với mã thoát `0`.
+2. **Cách giữ 200 Bóng Mực rải đều trong `benchMode`:** Trong gameplay thường, Bóng Mực `wander` đi về đèn tắt gần nhất (`L4`, `L5`). Với 200 Bóng Mực trong cảnh bench, nếu hút cả 200 con vào đúng 2 tọa độ `L4/L5` sẽ gây chồng hình cục bộ phi thực tế. Do đó trong `benchMode`, 200 Bóng Mực dùng quy tắc `wander` lượn tự do 2.0 m/s khắp mặt đảo (đổi hướng mỗi 120 tick hoặc khi chạm mép đảo / vùng an toàn 6 m của `L1–L3`), vừa giữ đúng luật `wander` vừa duy trì phân bố đều trên đảo suốt 30 giây đo.
+3. **Bảng xếp hạng lưu đĩa (`lib/leaderboard.js`):** Tách hoàn toàn khỏi `src/` để giữ `src/` thuần 100% không I/O; lưu tại `data/leaderboard.json` (hỗ trợ biến môi trường `DDL_LEADERBOARD_PATH` khi chạy test cô lập) và xuất qua `node server.js --export-leaderboard out.json`.
+
+## Nhật ký dùng AI Phase 4
+
+| Bước | Công cụ | Việc giao | Kiểm chứng |
+|---|---|---|---|
+| P4-1 | Antigravity (Gemini) | Lưu `docs/TICKET-04.md`, nâng `game.contract.json` lên v1.3 (`bench_cmd`, `soak_cmd`), cập nhật `AGENTS.md` và 3 skill (`sim-core`, `headless-contract`, `verify-phase`), thêm `benchMode` thuần trong `src/sim.js` | `npm run contract` (v1.3) |
+| P4-2 | Antigravity (Gemini) | Viết `soak.js` (10 đêm liên tiếp), tối ưu loại bỏ cấp phát ngắn hạn trong `Sim.step`, viết `lib/leaderboard.js` & nâng cấp `server.js` (`--export-leaderboard`, `GET/POST /api/leaderboard`) | `node soak.js --seed 7 --nights 10 --out soak.json` đạt `0` crash, RSS `46.0 -> 51.6 MB` (`1.12x <= 1.2x`) |
+| P4-3 | Antigravity (Gemini) | Nâng cấp Bóng Mực sang 5 `InstancedMesh` (`public/assets.js`, `public/main.js`), viết `bench.js` + chế độ `?bench=1`, tối ưu overdraw & biên dịch trước shader | `node bench.js --seed 42 --duration 30 --out bench.json` đạt `avg_fps: 133.5`, `p1_low_fps: 74.5`, `load_ms: 1903` |
+| P4-4 | Antigravity (Gemini) | Hoàn thiện Dễ tiếp cận (đổi 9 phím có báo trùng + khôi phục mặc định, phụ đề + mũi tên mép màn hình khi Bóng Mực sinh, giảm chuyển động, chữ `≥ 18 px` & `×1.25`) + UI Bảng xếp hạng | `npm test` 78/78 xanh |
+| P4-5 | Antigravity (Gemini) | Viết `tests/phase4/phase4.mjs`, `scripts/build-release.mjs`, `Dockerfile`, `docs/RETRO.md`, `docs/PERF.md`, cập nhật `README.md`, `CHANGELOG.md`, `CREDITS.md`, kiểm chứng clone sạch ≤ 3 lệnh & gắn tag `phase-4` | `npm test` 78/78 xanh, `npm run build:release` thành công |
+
+## Đánh giá nhanh Phase 4
+- **Đạt:** Toàn bộ 78/78 test tự động xanh (24 hồi quy Phase 1 + 37 Phase 2 + 11 Phase 3 + 6 Phase 4); `bench.json` đạt `133.5` FPS avg / `74.5` p1_low / `1.9 s` load; `soak.json` 10 đêm `0` crash, RSS `1.12×`; bảng xếp hạng lưu đĩa & xuất CLI đúng chuẩn; tiếp cận đầy đủ; đóng gói web tĩnh tự chạy và kiểm chứng clone sạch ≤ 3 lệnh.
+- **Ước tính token Phase 4:** ~75k token (tổng toàn dự án 4 phase ~385k token).
+

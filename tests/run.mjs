@@ -37,14 +37,14 @@ function test(name, fn) {
   catch (e) { failed++; console.log('  ✗ ' + name + '\n    ' + (e.message || e).split('\n').join('\n    ')); }
 }
 
-console.log('Test Contract v1.2 — Hồi quy Phase 1 theo số chuẩn TICKET-03');
+console.log('Test Contract v1.3 — Hồi quy Phase 1 theo số chuẩn TICKET-03/04');
 
-test('game.contract.json khớp tuning v1.2 trong mã', () => {
+test('game.contract.json khớp tuning v1.3 trong mã', () => {
   const c = JSON.parse(readFileSync(join(root, 'game.contract.json'), 'utf8'));
-  assert.equal(c.contract_version, '1.2'); // [TICKET-03] nâng contract_version 1.1 -> 1.2
+  assert.equal(c.contract_version, '1.3'); // [TICKET-04] nâng contract_version 1.2 -> 1.3
   assert.deepEqual(c.tuning, T);
   assert.equal(c.tuning.lantern_count_night1, 5);
-  for (const k of ['build_cmd', 'run_cmd', 'headless_cmd', 'team']) assert.equal(typeof c[k], 'string');
+  for (const k of ['build_cmd', 'run_cmd', 'headless_cmd', 'bench_cmd', 'soak_cmd', 'team']) assert.equal(typeof c[k], 'string');
 });
 
 test('snapshot: bắt đầu tick 0, đúng nhịp, dòng cuối là end', () => {
