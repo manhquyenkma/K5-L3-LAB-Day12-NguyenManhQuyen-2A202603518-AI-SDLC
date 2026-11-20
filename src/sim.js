@@ -4,6 +4,7 @@ import { TUNING as T, EXTRA as X } from './tuning.js';
 import { getNight } from './nights/index.js';
 import { getSupportHeight, resolveHorizontalMove, checkJumpPad } from './terrain.js';
 import { createShade, tickShadeTimers, stunShade, triggerShadeRecoil, stepShade, compareShadeId } from './entities/shade.js';
+import { createDrifter, tickDrifterTimers, stepDrifter } from './entities/drifter.js';
 
 export const DT = 1 / 60;
 export const TPS = 60;
@@ -77,8 +78,10 @@ export class Sim {
     this.charms = [];
     this.nextMote = 1;
     this.nextShade = 1;
+    this.nextDrifter = 1;
     this.nextShadeTick = X.shade_first_spawn_ticks;
     this.nextMoteTick = X.mote_respawn_ticks;
+    this.nextDrifterTick = X.drifter_spawn_interval_ticks;
     this._moveTmp = { x: 0, z: 0, y: 0, blocked: false };
 
     if (sc.player) {
@@ -126,6 +129,35 @@ export class Sim {
       }
       while (this.shades.some((z) => z.id === 'S' + this.nextShade)) this.nextShade++;
     }
+    if (sc.drifters !== undefined) {
+      for (const d of sc.drifters) {
+        let id = d.id;
+        if (id === undefined) {
+          while (this.drifters.some((x) => x.id === 'D' + this.nextDrifter)) this.nextDrifter++;
+          id = 'D' + this.nextDrifter++;
+        }
+        this.drifters.push(createDrifter({
+          id,
+          pos: d.pos,
+          state: d.state || 'idle',
+          stolen: d.stolen || 0,
+          fleeTicks: d.state_ticks_left,
+          spawnTick: -1,
+          rng: this.rng,
+        }));
+      }
+      while (this.drifters.some((x) => x.id === 'D' + this.nextDrifter)) this.nextDrifter++;
+    }
+    const charmList = sc.charms !== undefined ? sc.charms : this.nightCfg.charms;
+    for (let i = 0; i < charmList.length; i++) {
+      const c = charmList[i];
+      this.charms.push({
+        id: c.id || ('C' + (i + 1)),
+        pos: c.pos.slice(),
+        available: c.available !== false,
+        respawnTicks: c.respawn_ticks || 0,
+      });
+    }
   }
 
   get timeLeft() {
@@ -166,6 +198,30 @@ export class Sim {
     if (free.length === 0) return;
     const chosen = free[Math.floor(this.rng() * free.length)];
     this.motes.push({ id: 'M' + this.nextMote++, pos: [r3(chosen[0]), r3(chosen[1]), r3(chosen[2])], kind: 'random', ttl: 0, spawnTick: initial ? -1 : this.simTick });
+  }
+
+  _spawnMoteAt(pos) {
+    this.motes.push({
+      id: 'M' + this.nextMote++,
+      pos: [r3(pos[0]), r3(pos[1]), r3(pos[2])],
+      kind: 'dropped',
+      ttl: X.dropped_mote_ttl_ticks,
+      spawnTick: this.simTick,
+    });
+  }
+
+  _spawnDrifter() {
+    const pts = this.nightCfg.shadeSpawns;
+    if (pts.length === 0) return;
+    const pt = pts[Math.floor(this.rng() * pts.length)];
+    const id = 'D' + this.nextDrifter++;
+    this.drifters.push(createDrifter({
+      id,
+      pos: [r3(pt[0]), r3(pt[1] + 1.2), r3(pt[2])],
+      state: 'idle',
+      spawnTick: this.simTick,
+      rng: this.rng,
+    }));
   }
 
   _spawnShade() {
@@ -254,6 +310,19 @@ export class Sim {
     }
     for (let i = 0; i < this.shades.length; i++) {
       tickShadeTimers(this.shades[i]);
+    }
+    for (let i = 0; i < this.drifters.length; i++) {
+      tickDrifterTimers(this.drifters[i]);
+    }
+    for (let i = 0; i < this.charms.length; i++) {
+      const c = this.charms[i];
+      if (!c.available && c.respawnTicks > 0) {
+        c.respawnTicks--;
+        if (c.respawnTicks <= 0) {
+          c.respawnTicks = 0;
+          c.available = true;
+        }
+      }
     }
     if (p.respawnTicks > 0) {
       p.respawnTicks--;
@@ -410,7 +479,7 @@ export class Sim {
       }
     }
 
-    // Bước 4: Nhặt đom đóm (không nhặt khi đang chờ hồi sinh; đom đóm mới sinh chỉ nhặt từ tick sau)
+    // Bước 4: Nhặt đom đóm và Bùa Gió (không nhặt khi đang chờ hồi sinh)
     if (p.respawnTicks === 0) {
       for (let i = 0; i < this.motes.length; ) {
         if (p.carried >= T.carry_capacity) break;
@@ -421,6 +490,16 @@ export class Sim {
           this._emit('mote_picked', { carried: p.carried });
         } else {
           i++;
+        }
+      }
+      for (let i = 0; i < this.charms.length; i++) {
+        const c = this.charms[i];
+        if (c.available && d2(p.pos, c.pos) <= T.pickup_radius && Math.abs(p.pos[1] - c.pos[1]) <= X.pickup_dy) {
+          c.available = false;
+          c.respawnTicks = X.charm_respawn_ticks;
+          p.charmTicks = X.charm_duration_ticks;
+          p.dashCd = 0;
+          this._emit('charm_picked', { charm_id: c.id, charm_ticks: X.charm_duration_ticks });
         }
       }
     }
@@ -507,15 +586,53 @@ export class Sim {
           stunned.push(z.id);
         }
       }
+      for (const d of this.drifters) {
+        if (d.state === 'removed' || d.spawnTick >= this.simTick) continue;
+        const ox = d.pos[0] - p.pos[0];
+        const oy = d.pos[1] - py;
+        const oz = d.pos[2] - p.pos[2];
+        if (Math.hypot(ox, oy, oz) <= T.pulse_radius) {
+          if (d.state === 'chase') {
+            d.state = 'flee';
+            d.hasStolen = true;
+            d.fleeTicks = X.drifter_flee_ticks;
+          } else if (d.state === 'flee' && d.stolen > 0) {
+            const amount = d.stolen;
+            d.stolen = 0;
+            d.fleeTicks = X.drifter_drop_despawn_ticks;
+            const dropY = getSupportHeight(this.nightCfg, d.pos[0], d.pos[2], d.pos[1]) ?? 0;
+            for (let j = 0; j < amount; j++) this._spawnMoteAt([d.pos[0], dropY, d.pos[2]]);
+            this._emit('drifter_drop', { drifter_id: d.id, amount });
+          }
+        }
+      }
       this._emit('pulse', { stunned_ids: stunned });
     }
 
-    // Bước 8: Bóng Mực di chuyển (FSM 5 trạng thái)
+    // Bước 8: Di chuyển Bóng Mực và Gió Lạc
     for (let i = 0; i < this.shades.length; i++) {
       stepShade(this.shades[i], this, DT);
     }
+    for (let i = 0; i < this.drifters.length; i++) {
+      stepDrifter(this.drifters[i], this, DT);
+    }
 
-    // Bước 9: Bóng Mực chạm người chơi (theo id tăng dần, tối đa 1 lần mất Ngọn Lửa mỗi tick)
+    // Bước 9: Chạm — Gió Lạc cướp TRƯỚC, rồi Bóng Mực gây hit (theo id tăng dần)
+    if (p.respawnTicks === 0 && this.drifters.length > 0) {
+      for (let i = 0; i < this.drifters.length; i++) {
+        const d = this.drifters[i];
+        if (d.state !== 'chase' || d.hasStolen || d.spawnTick >= this.simTick) continue;
+        if (d2(p.pos, d.pos) <= X.drifter_steal_r && p.carried > 0) {
+          const amount = Math.min(X.drifter_steal_max, p.carried);
+          p.carried -= amount;
+          d.stolen = amount;
+          d.hasStolen = true;
+          d.state = 'flee';
+          d.fleeTicks = X.drifter_flee_ticks;
+          this._emit('drifter_steal', { drifter_id: d.id, amount, carried: p.carried });
+        }
+      }
+    }
     if (p.respawnTicks === 0 && p.invuln === 0 && this.shades.length > 0) {
       const ordered = this.shades.length > 1 ? this.shades.slice().sort(compareShadeId) : this.shades;
       for (let i = 0; i < ordered.length; i++) {
@@ -545,6 +662,12 @@ export class Sim {
     if (this.randomMotes && this.simTick >= this.nextMoteTick) {
       if (this.motes.length < X.max_motes) this._spawnMote();
       this.nextMoteTick += X.mote_respawn_ticks;
+    }
+    if (this.randomDrifters && this.simTick >= this.nextDrifterTick) {
+      let alive = 0;
+      for (let i = 0; i < this.drifters.length; i++) if (this.drifters[i].state !== 'removed') alive++;
+      if (alive < X.drifter_max) this._spawnDrifter();
+      this.nextDrifterTick += X.drifter_spawn_interval_ticks;
     }
 
     // Bước 11: Xét thắng/thua (hết lửa luôn ưu tiên thua -> còn sống & đủ đèn thắng -> hết giờ thua)
@@ -587,8 +710,8 @@ export class Sim {
       shades: this.shades.map((z) => ({ id: z.id, pos: z.pos.map(r3), state: z.state })),
       motes: this.motes.map((m) => ({ id: m.id, pos: m.pos.map(r3), kind: m.kind, ttl_s: r3(m.ttl / TPS) })),
       motes_active: this.motes.length,
-      drifters: this.drifters,
-      charms: this.charms,
+      drifters: this.drifters.map((d) => ({ id: d.id, pos: d.pos.map(r3), state: d.state, stolen: d.stolen })),
+      charms: this.charms.map((c) => ({ id: c.id, available: c.available, respawn_s: r3(c.respawnTicks / TPS) })),
     };
   }
 }
