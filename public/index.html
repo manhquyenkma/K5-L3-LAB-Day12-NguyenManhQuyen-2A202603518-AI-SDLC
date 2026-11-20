@@ -3,38 +3,183 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Đảo Đèn Lồng</title>
+<title>Đảo Đèn Lồng — Ba hòn đảo</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #0e1430; color: #f5f1e6; font-family: "Be Vietnam Pro", "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  :root {
+    --sky: #0E1430;
+    --fog: #1B2350;
+    --gold: #F2C14E;
+    --lantern: #FFB347;
+    --core: #FFE9B0;
+    --danger: #FF5A5F;
+    --text: #F5F1E6;
+    --charm: #C8102E;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--sky); color: var(--text); font-family: "Be Vietnam Pro", "Segoe UI", Roboto, sans-serif; overflow: hidden; user-select: none; }
   canvas { display: block; }
-  #hud { position: fixed; inset: 12px 12px auto 12px; display: flex; gap: 10px; flex-wrap: wrap; pointer-events: none; font-weight: 700; }
-  .pill { background: rgba(14, 20, 48, .72); border: 1px solid #2a3360; border-radius: 999px; padding: 6px 14px; font-size: 15px; }
-  .pill b { color: #ffb347; }
-  #toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); font-size: 18px; font-weight: 700; color: #ffe9b0; text-shadow: 0 0 12px #ffb347; opacity: 0; transition: opacity .25s; pointer-events: none; text-align: center; }
-  #help { position: fixed; bottom: 12px; left: 12px; right: 12px; font-size: 13px; color: #aeb3cc; pointer-events: none; text-shadow: 0 1px 3px #000; }
-  #overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: rgba(14, 20, 48, .82); text-align: center; padding: 24px; }
-  #overlay h1 { font-size: clamp(32px, 7vw, 56px); margin: 0; color: #ffb347; }
-  #overlay p { max-width: 52ch; color: #aeb3cc; margin: 0; line-height: 1.6; }
-  #overlay button { margin-top: 14px; font: 700 18px inherit; padding: 10px 28px; border-radius: 999px; border: 0; background: #ffb347; color: #0e1430; cursor: pointer; }
   .hidden { display: none !important; }
+
+  /* HUD 7 thành phần đúng vị trí TICKET-02 */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .pill { background: rgba(14, 20, 48, 0.78); border: 1px solid rgba(242, 193, 78, 0.35); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
+  #hud-tl { position: fixed; top: 14px; left: 16px; display: flex; flex-direction: column; gap: 8px; }
+  #hud-tc { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #hud-tr { position: fixed; top: 14px; right: 16px; display: flex; gap: 8px; align-items: center; }
+  #hud-bc { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  #hud-br { position: fixed; bottom: 20px; right: 16px; display: flex; gap: 10px; }
+
+  #h-time-pill { font-size: 20px; letter-spacing: 1px; padding: 6px 18px; }
+  #h-time-pill.danger { color: var(--danger); border-color: var(--danger); animation: blink 0.65s infinite alternate; }
+  @keyframes blink { from { opacity: 1; } to { opacity: 0.4; } }
+
+  .score-val { color: var(--gold); }
+  #charm-badge { background: rgba(200, 16, 46, 0.85); border-color: var(--gold); color: var(--text); font-size: 13px; }
+  #wind-badge { background: rgba(143, 163, 184, 0.25); border-color: #8FA3B8; color: var(--text); font-size: 13px; }
+
+  /* Thanh 10 ô đom đóm */
+  #mote-bar { display: flex; gap: 5px; background: rgba(14, 20, 48, 0.78); border: 1px solid rgba(242, 193, 78, 0.35); padding: 6px 10px; border-radius: 12px; }
+  .mote-slot { width: 18px; height: 18px; border-radius: 50%; background: rgba(91, 95, 110, 0.45); border: 1px solid rgba(255, 229, 138, 0.3); transition: background 0.12s, box-shadow 0.12s; }
+  .mote-slot.filled { background: #FFF6C2; border-color: #FFE58A; box-shadow: 0 0 8px #FFE58A; }
+
+  /* Nhắc tương tác */
+  #interact-prompt { background: rgba(14, 20, 48, 0.88); border: 1px solid var(--lantern); color: var(--core); padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+
+  /* Biểu tượng hồi chiêu Lướt & Tỏa Sáng */
+  .skill-box { width: 76px; height: 64px; border-radius: 12px; background: rgba(14, 20, 48, 0.82); border: 2px solid var(--gold); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; position: relative; }
+  .skill-box.cooling { border-color: #5B5F6E; color: #9ea5bc; }
+  .skill-key { font-size: 11px; color: var(--gold); }
+  .skill-cd { font-size: 14px; margin-top: 2px; }
+
+  /* Mũi tên chỉ đèn chưa sáng gần nhất khi ngoài màn hình */
+  #lantern-arrow { position: fixed; width: 34px; height: 34px; pointer-events: none; z-index: 6; display: flex; align-items: center; justify-content: center; }
+  #lantern-arrow .tri { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 22px solid var(--lantern); filter: drop-shadow(0 0 6px var(--lantern)); }
+
+  #toast { position: fixed; top: 82px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: 700; color: var(--core); text-shadow: 0 0 12px var(--lantern); opacity: 0; transition: opacity 0.25s; pointer-events: none; text-align: center; z-index: 7; background: rgba(14, 20, 48, 0.72); padding: 6px 14px; border-radius: 10px; }
+  #fps-box { position: fixed; top: 62px; left: 16px; font-family: monospace; font-size: 12px; background: rgba(0, 0, 0, 0.6); padding: 4px 8px; border-radius: 6px; color: #8fffa0; z-index: 20; }
+  #help-bar { position: fixed; bottom: 4px; left: 12px; font-size: 11px; color: rgba(245, 241, 230, 0.65); pointer-events: none; z-index: 5; }
+
+  /* Overlays: Menu, Intro, Pause, Settings, Result, Dawn */
+  .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(14, 20, 48, 0.86); text-align: center; padding: 24px; z-index: 15; }
+  .overlay.dawn { background: linear-gradient(180deg, rgba(255, 179, 71, 0.82), rgba(27, 35, 80, 0.9)); }
+  .overlay h1 { font-size: clamp(30px, 6vw, 52px); margin: 0; color: var(--lantern); text-shadow: 0 2px 18px rgba(255, 179, 71, 0.35); }
+  .overlay h2 { font-size: 22px; margin: 0; color: var(--core); }
+  .overlay p { max-width: 56ch; color: var(--text); margin: 0; line-height: 1.6; opacity: 0.92; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
+  button { font: 700 16px inherit; padding: 10px 22px; border-radius: 999px; border: 0; background: var(--lantern); color: var(--sky); cursor: pointer; transition: transform 0.1s; }
+  button:hover { transform: scale(1.03); }
+  button.sec { background: transparent; color: var(--text); border: 1px solid var(--gold); }
+  .setting-row { display: flex; align-items: center; justify-content: space-between; width: min(360px, 90vw); gap: 12px; background: rgba(27, 35, 80, 0.7); padding: 10px 16px; border-radius: 10px; }
+  .setting-row input[type="range"] { width: 160px; accent-color: var(--lantern); }
 </style>
 <script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
 </head>
 <body>
-<div id="hud">
-  <div class="pill">🔥 Lửa <b id="h-flames">3</b></div>
-  <div class="pill">✦ Ánh sáng <b id="h-carried">0/5</b></div>
-  <div class="pill">🏮 Đèn <b id="h-lit">0/5</b></div>
-  <div class="pill">⭐ Điểm <b id="h-score">0</b></div>
-  <div class="pill">🌙 Còn <b id="h-time">5:00</b></div>
+
+<div id="hud" class="hidden">
+  <div id="hud-tl">
+    <div class="pill" id="h-flames">🔥🔥🔥</div>
+    <div class="pill hidden" id="charm-badge">🧧 Bùa Gió <span id="h-charm">0.0s</span></div>
+    <div class="pill hidden" id="wind-badge">🍃 Gió mạnh</div>
+  </div>
+  <div id="hud-tc">
+    <div class="pill" id="h-time-pill">🌙 <span id="h-time">05:00</span></div>
+    <div style="font-size:12px;color:#F2C14E" id="h-night-name">Đêm 1 — Đảo Bến</div>
+  </div>
+  <div id="hud-tr">
+    <div class="pill">🏮 <span id="h-lit">0/5</span></div>
+    <div class="pill">⭐ <span class="score-val" id="h-score">0</span></div>
+  </div>
+  <div id="hud-bc">
+    <div id="interact-prompt" class="hidden">E — Nạp ánh sáng (0/10)</div>
+    <div id="mote-bar"></div>
+  </div>
+  <div id="hud-br">
+    <div class="skill-box" id="sk-dash">
+      <div class="skill-key">SHIFT</div>
+      <div>Lướt</div>
+      <div class="skill-cd" id="cd-dash">Sẵn sàng</div>
+    </div>
+    <div class="skill-box" id="sk-pulse">
+      <div class="skill-key">F (3✦)</div>
+      <div>Tỏa Sáng</div>
+      <div class="skill-cd" id="cd-pulse">Sẵn sàng</div>
+    </div>
+  </div>
 </div>
+
+<div id="lantern-arrow" class="hidden"><div class="tri"></div></div>
 <div id="toast"></div>
-<div id="help">WASD / mũi tên: di chuyển · Space: nhảy · E: nạp ánh sáng vào đèn · F: tỏa sáng xua Bóng Mực (tốn 1 ánh sáng) · Q/R hoặc kéo chuột: xoay camera</div>
-<div id="overlay">
-  <h1 id="o-title">Đảo Đèn Lồng</h1>
-  <p id="o-text">Sương đen đã nuốt hết ánh sáng của đảo. Hãy nhặt đom đóm, thắp lại 5 Đèn Lồng Lớn trước khi trời sáng. Bóng Mực sợ ánh đèn, nhưng chúng đuổi theo bạn.</p>
-  <button id="o-btn">Bắt đầu Đêm 1</button>
+<div id="fps-box" class="hidden">FPS: --</div>
+<div id="help-bar">WASD/Mũi tên: đi · Space: nhảy · Shift: lướt · E: nạp đèn · F: tỏa sáng · Q/R hoặc kéo chuột: xoay camera · Esc/P: tạm dừng</div>
+
+<!-- Menu chính -->
+<div id="ov-menu" class="overlay">
+  <h1>Đảo Đèn Lồng</h1>
+  <h2>Ba Hòn Đảo</h2>
+  <p>Cùng Mây gom đom đóm, thắp lại các Đèn Lồng Lớn qua 3 Đêm (Đảo Bến, Đảo Cau, Đảo Chuông) để xua tan sương đen và đón Bình Minh.</p>
+  <div class="btn-row">
+    <button id="btn-play">Bắt đầu hành trình</button>
+    <button class="sec" id="btn-menu-settings">Cài đặt</button>
+  </div>
+  <div class="btn-row">
+    <button class="sec" data-night="1">Đêm 1: Đảo Bến</button>
+    <button class="sec" data-night="2">Đêm 2: Đảo Cau</button>
+    <button class="sec" data-night="3">Đêm 3: Đảo Chuông</button>
+  </div>
 </div>
+
+<!-- Giới thiệu Đêm (lời Ông Đăng) -->
+<div id="ov-intro" class="overlay hidden">
+  <h2 id="intro-sub">Đêm 1</h2>
+  <h1 id="intro-title">Đảo Bến</h1>
+  <p id="intro-quote"></p>
+  <div class="btn-row">
+    <button id="btn-start-night">Vào Đêm</button>
+    <button class="sec" id="btn-intro-menu">Về Menu</button>
+  </div>
+</div>
+
+<!-- Tạm dừng (Esc/P) -->
+<div id="ov-pause" class="overlay hidden">
+  <h1>Tạm dừng</h1>
+  <div class="btn-row" style="flex-direction:column;width:240px;">
+    <button id="btn-resume">Tiếp tục</button>
+    <button class="sec" id="btn-retry-pause">Chơi lại Đêm</button>
+    <button class="sec" id="btn-pause-settings">Cài đặt</button>
+    <button class="sec" id="btn-pause-menu">Về menu</button>
+  </div>
+</div>
+
+<!-- Cài đặt (lưu localStorage) -->
+<div id="ov-settings" class="overlay hidden">
+  <h1>Cài đặt</h1>
+  <div class="setting-row">
+    <label for="set-vol">Âm lượng</label>
+    <input id="set-vol" type="range" min="0" max="100" step="1">
+    <span id="set-vol-val">70%</span>
+  </div>
+  <div class="setting-row">
+    <label for="set-sens">Độ nhạy chuột</label>
+    <input id="set-sens" type="range" min="10" max="100" step="5">
+    <span id="set-sens-val">35%</span>
+  </div>
+  <div class="btn-row">
+    <button id="btn-settings-back">Quay lại</button>
+  </div>
+</div>
+
+<!-- Kết quả Đêm / Màn hình Bình Minh -->
+<div id="ov-result" class="overlay hidden">
+  <h1 id="res-title">Hoàn thành Đêm!</h1>
+  <p id="res-desc"></p>
+  <p style="color:#F2C14E;font-weight:700;font-size:20px" id="res-score"></p>
+  <div class="btn-row">
+    <button id="btn-res-primary">Đêm kế tiếp</button>
+    <button class="sec" id="btn-res-menu">Về menu</button>
+  </div>
+</div>
+
 <script type="module" src="/main.js"></script>
 </body>
 </html>

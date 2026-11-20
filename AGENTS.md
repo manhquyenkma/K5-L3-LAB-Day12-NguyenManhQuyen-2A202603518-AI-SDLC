@@ -1,25 +1,26 @@
-# AGENTS.md: harness AI cho Đảo Đèn Lồng
+# AGENTS.md — Harness AI cho Đảo Đèn Lồng (Phase 2, Contract v1.1)
 
-Quy tắc cho mọi agent làm việc trong repo này (Claude Code, Claude chat, v.v.).
+Quy tắc bắt buộc cho mọi agent làm việc trong repo này.
 
-## Nguyên tắc
-1. **Đúng yêu cầu > phức tạp.** Đọc PRD-0 và Test Contract v1.0 trước; mọi thay đổi không được phá contract.
-2. **Lõi trước, sáng tạo sau.** Sáng tạo chỉ nằm ở `public/` (hiển thị/âm thanh) trừ khi chứng minh được headless không đổi.
-3. **Không có bằng chứng thì chưa xong.** "Agent bảo chạy rồi" không tính; phải có `npm test` xanh hoặc log JSONL.
-4. **Tiết kiệm token.** Không đọc lại cả repo; `src/sim.js` (khoảng 250 dòng) là nơi duy nhất chứa luật chơi.
+## Nguyên tắc cốt lõi
+1. **Nguồn sự thật duy nhất:** `docs/TICKET-02.md` (số liệu chuẩn, bản đồ chuẩn, Test Contract v1.1) và `docs/PHASE2_PLAN.md` (mốc M0–M9). **Không đổi số chuẩn, không làm thêm ngoài đề.**
+2. **Tách sạch lõi & hiển thị:** `src/tuning.js`, `src/nights/*`, `src/terrain.js`, `src/entities/*`, `src/sim.js` là JS thuần. **Cấm** `Math.random`, `Date`, `performance`, DOM, I/O trong lõi. Mọi ngẫu nhiên chỉ qua `this.rng` (mulberry32 theo `--seed`).
+3. **Sáng tạo không làm lệch headless:** Giữ nguyên các sáng tạo hiển thị/âm thanh Phase 1 trong `public/`; tuyệt đối không để phần hiển thị làm đổi đầu ra `headless.js`.
+4. **Không có bằng chứng thì chưa xong:** Mỗi mốc M0..M9 phải: viết test trước → code → `npm test` xanh toàn bộ (kể cả hồi quy Phase 1) → commit riêng 1 commit rõ ràng.
+5. **Trung thực & tiết kiệm token:** Chỗ đề mơ hồ dùng `docs/ASSUMPTIONS.md`, không tự bịa thêm. Không tắt test cũ âm thầm; nếu luật mới thay luật cũ phải ghi rõ lý do trong `docs/ASSUMPTIONS.md` và test.
 
-## Quy ước kỹ thuật
-- `src/sim.js` thuần: cấm `Math.random`, `Date`, DOM, I/O. Ngẫu nhiên chỉ qua `this.rng` (mulberry32 theo `--seed`).
-- Mọi con số gameplay nằm ở `src/tuning.js`. Sửa số thì chạy `npm run contract` rồi `npm test`.
-- Tick cố định 1/60 s. Bước k đọc input tick k, tạo trạng thái k+1, sự kiện ghi `tick = k+1`.
-- Khoảng cách tính trên mặt phẳng XZ, "trong bán kính r" nghĩa là `<= r`. Tọa độ xuất ra làm tròn 3 chữ số.
+## Kiến trúc & Quy ước Phase 2
+- **Dữ liệu tách khỏi logic:** Bản đồ 3 Đêm nằm ở `src/nights/n1.js`, `n2.js`, `n3.js`; truy vấn địa hình ở `src/terrain.js`; FSM ở `src/entities/shade.js`, `src/entities/drifter.js`; vòng tick ở `src/sim.js`.
+- **Thứ tự 12 bước trong `Sim.step()` là bắt buộc** (xem `.agents/skills/sim-core/SKILL.md`).
+- **Hiệu năng:** Headless 1 Đêm đầy đủ (≤ 21.600 tick) phải ≤ 30 s; tránh cấp phát rác không cần thiết trong vòng lặp nóng.
+- **Bảo mật & Git:** Cấm commit `.env`/key; cấm xóa harness hoặc force-push sau khi gắn tag.
 
-## Quy trình mỗi thay đổi
-1. Viết/đổi test trong `tests/run.mjs` (hoặc xác nhận test hiện có bao phủ).
-2. Sửa mã. 3. `npm test`. 4. Nếu đổi số liệu: `npm run contract`. 5. Ghi vào `docs/NOTES.md` (nhật ký AI).
+## Skills chuyên biệt (nạp đúng skill theo tác vụ)
+- `.agents/skills/sim-core/SKILL.md` — Quy tắc lõi thuần, 12 bước tick, RNG & tối ưu hiệu năng.
+- `.agents/skills/headless-contract/SKILL.md` — Schema Test Contract v1.1, mã thoát 0/1/2, quy ước snapshot/event/scenario.
+- `.agents/skills/night-data/SKILL.md` — Quy ước bản đồ chuẩn 3 Đêm, góc từ +X ngược chiều kim đồng hồ trên XZ.
+- `.agents/skills/verify-phase/SKILL.md` — Cổng kiểm chứng cuối mỗi mốc/phase trước khi gắn tag.
+- `.agents/skills/review-diff/SKILL.md` — Rà soát độc lập trước khi phát hành.
 
-## Lệnh
-`npm test` · `npm run contract` · `node scripts/bot.mjs <seed> [inputs.json]` (bot chứng minh thắng được) · `npm start`
-
-## Hooks gợi ý (Claude Code, `.claude/settings.json`)
-Chạy `npm test` sau mỗi lần sửa `src/**` để bắt lỗi contract sớm.
+## Lệnh chuẩn
+`npm test` · `npm run contract` · `node headless.js --seed 1 --night 1 --ticks 600 --out out.jsonl` · `npm start`
