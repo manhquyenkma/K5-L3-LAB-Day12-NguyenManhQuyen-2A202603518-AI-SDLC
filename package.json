@@ -1,0 +1,16 @@
+{
+  "name": "dao-den-long",
+  "version": "1.0.0",
+  "description": "Đảo Đèn Lồng - Day 12 AI SDLC Lab, Phase 1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "headless": "node headless.js",
+    "contract": "node scripts/gen-contract.js",
+    "test": "node tests/run.mjs"
+  },
+  "dependencies": {
+    "three": "0.160.0"
+  }
+}
