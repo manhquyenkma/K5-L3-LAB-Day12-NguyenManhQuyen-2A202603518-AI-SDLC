@@ -2,7 +2,8 @@
 // Dùng chung cho chế độ headless (Node) và bản chơi trên trình duyệt.
 import { TUNING as T, EXTRA as X } from './tuning.js';
 import { getNight } from './nights/index.js';
-import { getSupportHeight, resolveHorizontalMove, moveOnWalkable, checkJumpPad } from './terrain.js';
+import { getSupportHeight, resolveHorizontalMove, checkJumpPad } from './terrain.js';
+import { createShade, tickShadeTimers, stunShade, triggerShadeRecoil, stepShade, compareShadeId } from './entities/shade.js';
 
 export const DT = 1 / 60;
 export const TPS = 60;
@@ -114,17 +115,14 @@ export class Sim {
           while (this.shades.some((z) => z.id === 'S' + this.nextShade)) this.nextShade++;
           id = 'S' + this.nextShade++;
         }
-        this.shades.push({
+        const defaultState = s.state ?? (d2(this.player.pos, s.pos) <= X.shade_detect_r ? 'chase' : 'wander');
+        this.shades.push(createShade({
           id,
-          pos: s.pos.slice(),
-          state: s.state || 'chase',
-          stun: s.state === 'stunned' ? (s.state_ticks_left ?? ticks(T.pulse_stun_s)) : 0,
-          pushTicks: 0,
-          pushDx: 0,
-          pushDz: 0,
-          expelTicks: 0,
-          expelLantern: null,
-        });
+          pos: s.pos,
+          state: defaultState,
+          stateTicks: s.state_ticks_left,
+          rng: this.rng,
+        }));
       }
       while (this.shades.some((z) => z.id === 'S' + this.nextShade)) this.nextShade++;
     }
@@ -179,17 +177,13 @@ export class Sim {
     if (valid.length === 0) return;
     const pt = valid[Math.floor(this.rng() * valid.length)];
     const id = 'S' + this.nextShade++;
-    this.shades.push({
+    this.shades.push(createShade({
       id,
       pos: [r3(pt[0]), r3(pt[1] + X.shade_height), r3(pt[2])],
-      state: 'chase',
-      stun: 0,
-      pushTicks: 0,
-      pushDx: 0,
-      pushDz: 0,
-      expelTicks: 0,
-      expelLantern: null,
-    });
+      state: 'spawning',
+      stateTicks: 1,
+      rng: this.rng,
+    }));
     this._emit('shade_spawned', { id });
   }
 
@@ -259,11 +253,7 @@ export class Sim {
       }
     }
     for (let i = 0; i < this.shades.length; i++) {
-      const z = this.shades[i];
-      if (z.state === 'stunned' && z.stun > 0) {
-        z.stun--;
-        if (z.stun <= 0) { z.state = 'chase'; z.stun = 0; z.pushTicks = 0; }
-      }
+      tickShadeTimers(this.shades[i]);
     }
     if (p.respawnTicks > 0) {
       p.respawnTicks--;
@@ -507,18 +497,12 @@ export class Sim {
       const stunned = [];
       const py = p.pos[1] + X.pulse_origin_y;
       for (const z of this.shades) {
+        if (z.state === 'spawning') continue;
         const ox = z.pos[0] - p.pos[0];
         const oy = z.pos[1] - py;
         const oz = z.pos[2] - p.pos[2];
         if (Math.hypot(ox, oy, oz) <= T.pulse_radius) {
-          z.state = 'stunned';
-          z.stun = ticks(T.pulse_stun_s);
-          let ex = ox, ez = oz;
-          const e = Math.hypot(ex, ez);
-          if (e < 1e-9) { ex = 1; ez = 0; } else { ex /= e; ez /= e; }
-          z.pushTicks = X.pulse_push_ticks;
-          z.pushDx = (ex * T.pulse_push_m) / X.pulse_push_ticks;
-          z.pushDz = (ez * T.pulse_push_m) / X.pulse_push_ticks;
+          stunShade(z, p.pos[0], p.pos[2], ticks(T.pulse_stun_s));
           this.score += T.score.per_stun;
           stunned.push(z.id);
         }
@@ -526,42 +510,25 @@ export class Sim {
       this._emit('pulse', { stunned_ids: stunned });
     }
 
-    // Bước 8: Bóng Mực di chuyển (gồm 15 tick đẩy lùi từ Tỏa Sáng)
-    for (const z of this.shades) {
-      if (z.expelTicks > 0) continue;
-      if (z.state === 'stunned') {
-        if (z.pushTicks > 0) {
-          resolveHorizontalMove(this.nightCfg, z.pos[0], z.pos[2], z.pos[0] + z.pushDx, z.pos[2] + z.pushDz, z.pos[1] - X.shade_height, this._moveTmp);
-          z.pos[0] = this._moveTmp.x;
-          z.pos[2] = this._moveTmp.z;
-          this._repel(z.pos);
-          if (this._moveTmp.blocked) z.pushTicks = 0;
-          else z.pushTicks--;
-        }
-        continue;
-      }
-      const ex = p.pos[0] - z.pos[0], ez = p.pos[2] - z.pos[2];
-      const e = Math.hypot(ex, ez);
-      if (e > 1e-9) {
-        const st = Math.min(this.nightCfg.shadeSpeed * DT, e);
-        moveOnWalkable(this.nightCfg, z.pos[0], z.pos[2], z.pos[0] + (ex / e) * st, z.pos[2] + (ez / e) * st, z.pos[1] - X.shade_height, this._moveTmp);
-        z.pos[0] = this._moveTmp.x;
-        z.pos[2] = this._moveTmp.z;
-      }
-      this._repel(z.pos);
+    // Bước 8: Bóng Mực di chuyển (FSM 5 trạng thái)
+    for (let i = 0; i < this.shades.length; i++) {
+      stepShade(this.shades[i], this, DT);
     }
 
-    // Bước 9: Bóng Mực chạm người chơi (không gây sát thương khi đang bị đẩy ra hoặc đang choáng)
-    if (p.respawnTicks === 0 && p.invuln === 0) {
-      for (const z of this.shades) {
-        if (z.state === 'stunned' || z.expelTicks > 0) continue;
+    // Bước 9: Bóng Mực chạm người chơi (theo id tăng dần, tối đa 1 lần mất Ngọn Lửa mỗi tick)
+    if (p.respawnTicks === 0 && p.invuln === 0 && this.shades.length > 0) {
+      const ordered = this.shades.length > 1 ? this.shades.slice().sort(compareShadeId) : this.shades;
+      for (let i = 0; i < ordered.length; i++) {
+        const z = ordered[i];
+        if (z.state === 'stunned' || z.state === 'spawning' || z.state === 'recoil' || z.expelTicks > 0) continue;
         if (d2(p.pos, z.pos) <= T.shade_hit_radius && Math.abs(p.pos[1] - (z.pos[1] - X.shade_height)) <= X.shade_hit_dy) {
           p.flames--;
           const dropped = Math.floor(p.carried * T.hit_drop_ratio);
           p.carried -= dropped;
           p.invuln = ticks(T.invuln_s);
+          triggerShadeRecoil(z, p.pos[0], p.pos[2]);
           this._emit('player_hit', { by: 'shade', flames: p.flames, dropped });
-          for (let i = 0; i < dropped; i++) this._spawnMote(p.pos);
+          for (let j = 0; j < dropped; j++) this._spawnMote(p.pos);
           break;
         }
       }
