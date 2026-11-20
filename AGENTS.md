@@ -1,9 +1,9 @@
-# AGENTS.md — Harness AI cho Đảo Đèn Lồng (Phase 2, Contract v1.1)
+# AGENTS.md — Harness AI cho Đảo Đèn Lồng (Phase 3, Contract v1.2)
 
 Quy tắc bắt buộc cho mọi agent làm việc trong repo này.
 
 ## Nguyên tắc cốt lõi
-1. **Nguồn sự thật duy nhất:** `docs/TICKET-02.md` (số liệu chuẩn, bản đồ chuẩn, Test Contract v1.1) và `docs/PHASE2_PLAN.md` (mốc M0–M9). **Không đổi số chuẩn, không làm thêm ngoài đề.**
+1. **Nguồn sự thật duy nhất:** `docs/TICKET-03.md` (Phase 3, Contract v1.2 — kế thừa và ghi đè các mục được đánh dấu `[THAY THẾ]` trong `docs/TICKET-02.md`) và `docs/ADR-001-phase3-lantern-fuel-and-win-rule.md`. **Không đổi số chuẩn, không làm thêm ngoài đề.**
 2. **Tách sạch lõi & hiển thị:** `src/tuning.js`, `src/nights/*`, `src/terrain.js`, `src/entities/*`, `src/sim.js` là JS thuần. **Cấm** `Math.random`, `Date`, `performance`, DOM, I/O trong lõi. Mọi ngẫu nhiên chỉ qua `this.rng` (mulberry32 theo `--seed`).
 3. **Sáng tạo không làm lệch headless:** Giữ nguyên các sáng tạo hiển thị/âm thanh Phase 1 trong `public/`; tuyệt đối không để phần hiển thị làm đổi đầu ra `headless.js`.
 4. **Không có bằng chứng thì chưa xong:** Mỗi mốc M0..M9 phải: viết test trước → code → `npm test` xanh toàn bộ (kể cả hồi quy Phase 1) → commit riêng 1 commit rõ ràng.
