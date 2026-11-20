@@ -1,0 +1,37 @@
+name: CI Verify
+
+on:
+  push:
+    branches: [main]
+    tags: ['phase-*', 'v*']
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run Contract Tests
+        run: npm test
+
+      - name: Syntax check 3D client & server
+        run: |
+          node --check src/tuning.js
+          node --check src/sim.js
+          node --check headless.js
+          node --check server.js
+          node --check public/main.js
+
+      - name: Verify greedy bot wins Night 1
+        run: node scripts/bot.mjs 1
