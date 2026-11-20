@@ -29,7 +29,7 @@ for (const night of [1, 2, 3]) {
     );
     assert.equal(r.status, 0, r.stderr);
     const actual = readFileSync(out, 'utf8');
-    const expected = readFileSync(join(goldenDir, `night${night}.jsonl`), 'utf8');
+    const expected = readFileSync(join(goldenDir, `night${night}.jsonl`), 'utf8').replace(/\r\n/g, '\n');
     assert.equal(actual, expected, `Đầu ra headless Đêm ${night} lệch khỏi log vàng!`);
   });
 }

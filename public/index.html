@@ -3,106 +3,511 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Đảo Đèn Lồng — Ba hòn đảo</title>
+<title>Đảo Đèn Lồng — Ba Hòn Đảo</title>
 <style>
   :root {
     --sky: #0E1430;
     --fog: #1B2350;
+    --sea: #12384A;
     --gold: #F2C14E;
     --lantern: #FFB347;
     --core: #FFE9B0;
+    --mote: #FFF6C2;
     --danger: #FF5A5F;
     --text: #F5F1E6;
     --charm: #C8102E;
+    --muted: #5B5F6E;
+    --drifter: #8FA3B8;
+    --glass: rgba(14, 20, 48, 0.72);
+    --glass-strong: rgba(14, 20, 48, 0.86);
+    --border-gold: rgba(242, 193, 78, 0.38);
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--sky); color: var(--text); font-family: "Be Vietnam Pro", "Segoe UI", Roboto, sans-serif; overflow: hidden; user-select: none; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--sky);
+    color: var(--text);
+    font-family: "Be Vietnam Pro", "Segoe UI", system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+    user-select: none;
+  }
   canvas { display: block; }
   .hidden { display: none !important; }
 
-  /* HUD 7 thành phần đúng vị trí TICKET-02 */
-  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
-  .pill { background: rgba(14, 20, 48, 0.78); border: 1px solid rgba(242, 193, 78, 0.35); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: 15px; display: inline-flex; align-items: center; gap: 6px; }
-  #hud-tl { position: fixed; top: 14px; left: 16px; display: flex; flex-direction: column; gap: 8px; }
-  #hud-tc { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
-  #hud-tr { position: fixed; top: 14px; right: 16px; display: flex; gap: 8px; align-items: center; }
-  #hud-bc { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  #hud-br { position: fixed; bottom: 20px; right: 16px; display: flex; gap: 10px; }
+  /* Khí quyển viền màn hình + hiệu ứng chớp sát thương / thắp đèn */
+  #vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    background: radial-gradient(ellipse at center, transparent 58%, rgba(10, 14, 34, 0.58) 100%);
+  }
+  #fx-flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+    opacity: 0;
+    transition: opacity 0.35s ease-out;
+  }
+  #fx-flash.hit {
+    background: radial-gradient(circle at center, transparent 42%, rgba(255, 90, 95, 0.55) 100%);
+    opacity: 1;
+  }
+  #fx-flash.lit {
+    background: radial-gradient(circle at center, rgba(255, 233, 176, 0.24) 0%, rgba(255, 179, 71, 0.14) 55%, transparent 100%);
+    opacity: 1;
+  }
 
-  #h-time-pill { font-size: 20px; letter-spacing: 1px; padding: 6px 18px; }
-  #h-time-pill.danger { color: var(--danger); border-color: var(--danger); animation: blink 0.65s infinite alternate; }
-  @keyframes blink { from { opacity: 1; } to { opacity: 0.4; } }
+  /* ==================== HUD 7 THÀNH PHẦN ==================== */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
 
-  .score-val { color: var(--gold); }
-  #charm-badge { background: rgba(200, 16, 46, 0.85); border-color: var(--gold); color: var(--text); font-size: 13px; }
-  #wind-badge { background: rgba(143, 163, 184, 0.25); border-color: #8FA3B8; color: var(--text); font-size: 13px; }
+  .glass-pill {
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-gold);
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-weight: 700;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 233, 176, 0.12);
+    font-variant-numeric: tabular-nums;
+  }
 
-  /* Thanh 10 ô đom đóm */
-  #mote-bar { display: flex; gap: 5px; background: rgba(14, 20, 48, 0.78); border: 1px solid rgba(242, 193, 78, 0.35); padding: 6px 10px; border-radius: 12px; }
-  .mote-slot { width: 18px; height: 18px; border-radius: 50%; background: rgba(91, 95, 110, 0.45); border: 1px solid rgba(255, 229, 138, 0.3); transition: background 0.12s, box-shadow 0.12s; }
-  .mote-slot.filled { background: #FFF6C2; border-color: #FFE58A; box-shadow: 0 0 8px #FFE58A; }
+  #hud-tl { position: fixed; top: 16px; left: 18px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  #hud-tc { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  #hud-tr { position: fixed; top: 16px; right: 18px; display: flex; gap: 10px; align-items: center; }
+  #hud-bc { position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  #hud-br { position: fixed; bottom: 24px; right: 18px; display: flex; gap: 12px; align-items: flex-end; }
 
-  /* Nhắc tương tác */
-  #interact-prompt { background: rgba(14, 20, 48, 0.88); border: 1px solid var(--lantern); color: var(--core); padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 14px; }
+  /* Ngọn lửa (trên trái) */
+  #h-flames { display: inline-flex; gap: 6px; padding: 7px 14px; }
+  .flame-ico {
+    width: 20px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.25s ease, opacity 0.25s ease;
+  }
+  .flame-ico.on svg {
+    filter: drop-shadow(0 0 7px rgba(255, 179, 71, 0.95));
+    animation: flameFlicker 1.4s ease-in-out infinite alternate;
+  }
+  .flame-ico.off { opacity: 0.22; transform: scale(0.84); }
+  @keyframes flameFlicker {
+    from { transform: scale(1) translateY(0); }
+    to { transform: scale(1.08) translateY(-1px); }
+  }
 
-  /* Biểu tượng hồi chiêu Lướt & Tỏa Sáng */
-  .skill-box { width: 76px; height: 64px; border-radius: 12px; background: rgba(14, 20, 48, 0.82); border: 2px solid var(--gold); display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; position: relative; }
-  .skill-box.cooling { border-color: #5B5F6E; color: #9ea5bc; }
-  .skill-key { font-size: 11px; color: var(--gold); }
-  .skill-cd { font-size: 14px; margin-top: 2px; }
+  #charm-badge {
+    background: linear-gradient(135deg, rgba(200, 16, 46, 0.88), rgba(140, 12, 34, 0.88));
+    border-color: var(--gold);
+    color: var(--text);
+    font-size: 13px;
+    padding: 5px 13px;
+    box-shadow: 0 0 18px rgba(200, 16, 46, 0.45);
+  }
+  #wind-badge {
+    background: rgba(27, 35, 80, 0.84);
+    border-color: var(--drifter);
+    color: var(--text);
+    font-size: 13px;
+    padding: 5px 13px;
+  }
 
-  /* Mũi tên chỉ đèn chưa sáng gần nhất khi ngoài màn hình */
-  #lantern-arrow { position: fixed; width: 34px; height: 34px; pointer-events: none; z-index: 6; display: flex; align-items: center; justify-content: center; }
-  #lantern-arrow .tri { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 22px solid var(--lantern); filter: drop-shadow(0 0 6px var(--lantern)); }
+  /* Đồng hồ (trên giữa) */
+  #h-time-pill {
+    font-size: 21px;
+    letter-spacing: 1.5px;
+    padding: 7px 22px;
+    border-color: rgba(255, 233, 176, 0.45);
+  }
+  #h-time-pill.danger {
+    color: var(--danger);
+    border-color: var(--danger);
+    background: rgba(56, 12, 22, 0.85);
+    box-shadow: 0 0 22px rgba(255, 90, 95, 0.5);
+    animation: blinkDanger 0.6s ease-in-out infinite alternate;
+  }
+  @keyframes blinkDanger {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0.55; transform: scale(1.03); }
+  }
+  #h-night-name {
+    font-size: 12px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+    font-weight: 700;
+  }
 
-  #toast { position: fixed; top: 82px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: 700; color: var(--core); text-shadow: 0 0 12px var(--lantern); opacity: 0; transition: opacity 0.25s; pointer-events: none; text-align: center; z-index: 7; background: rgba(14, 20, 48, 0.72); padding: 6px 14px; border-radius: 10px; }
-  #fps-box { position: fixed; top: 62px; left: 16px; font-family: monospace; font-size: 12px; background: rgba(0, 0, 0, 0.6); padding: 4px 8px; border-radius: 6px; color: #8fffa0; z-index: 20; }
-  #help-bar { position: fixed; bottom: 4px; left: 12px; font-size: 11px; color: rgba(245, 241, 230, 0.65); pointer-events: none; z-index: 5; }
+  /* Đèn & Điểm (trên phải) */
+  .score-val { color: var(--gold); font-size: 17px; }
+  .lantern-val { color: var(--core); }
 
-  /* Overlays: Menu, Intro, Pause, Settings, Result, Dawn */
-  .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: rgba(14, 20, 48, 0.86); text-align: center; padding: 24px; z-index: 15; }
-  .overlay.dawn { background: linear-gradient(180deg, rgba(255, 179, 71, 0.82), rgba(27, 35, 80, 0.9)); }
-  .overlay h1 { font-size: clamp(30px, 6vw, 52px); margin: 0; color: var(--lantern); text-shadow: 0 2px 18px rgba(255, 179, 71, 0.35); }
-  .overlay h2 { font-size: 22px; margin: 0; color: var(--core); }
-  .overlay p { max-width: 56ch; color: var(--text); margin: 0; line-height: 1.6; opacity: 0.92; }
-  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 8px; }
-  button { font: 700 16px inherit; padding: 10px 22px; border-radius: 999px; border: 0; background: var(--lantern); color: var(--sky); cursor: pointer; transition: transform 0.1s; }
-  button:hover { transform: scale(1.03); }
-  button.sec { background: transparent; color: var(--text); border: 1px solid var(--gold); }
-  .setting-row { display: flex; align-items: center; justify-content: space-between; width: min(360px, 90vw); gap: 12px; background: rgba(27, 35, 80, 0.7); padding: 10px 16px; border-radius: 10px; }
-  .setting-row input[type="range"] { width: 160px; accent-color: var(--lantern); }
+  /* Nhắc tương tác E */
+  #interact-prompt {
+    background: linear-gradient(135deg, rgba(27, 35, 80, 0.92), rgba(14, 20, 48, 0.92));
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--lantern);
+    color: var(--core);
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 14px;
+    box-shadow: 0 0 20px rgba(255, 179, 71, 0.35);
+    animation: promptFloat 1.5s ease-in-out infinite alternate;
+  }
+  @keyframes promptFloat {
+    from { transform: translateY(0); }
+    to { transform: translateY(-3px); }
+  }
+
+  /* Thanh 10 ô đom đóm (dưới giữa) */
+  #mote-bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-gold);
+    padding: 8px 14px;
+    border-radius: 999px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+  }
+  .mote-slot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(91, 95, 110, 0.55), rgba(14, 20, 48, 0.85));
+    border: 1px solid rgba(255, 229, 138, 0.28);
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.18s, box-shadow 0.18s;
+  }
+  .mote-slot.filled {
+    background: radial-gradient(circle at 35% 35%, #FFFFFF, #FFF6C2 48%, #FFE58A 100%);
+    border-color: #FFF6C2;
+    box-shadow: 0 0 11px rgba(255, 229, 138, 0.95), 0 0 4px #FFF6C2;
+    transform: scale(1.12);
+  }
+
+  /* Huy hiệu hồi chiêu Lướt & Tỏa Sáng (dưới phải) */
+  .skill-box {
+    width: 84px;
+    height: 80px;
+    border-radius: 16px;
+    background: linear-gradient(160deg, rgba(27, 35, 80, 0.85), rgba(14, 20, 48, 0.92));
+    backdrop-filter: blur(10px);
+    border: 1.5px solid var(--gold);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-size: 12px;
+    font-weight: 700;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 14px rgba(242, 193, 78, 0.2);
+    transition: border-color 0.2s, transform 0.2s, opacity 0.2s;
+  }
+  .skill-box.cooling {
+    border-color: rgba(91, 95, 110, 0.7);
+    color: #9ea5bc;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    opacity: 0.78;
+  }
+  .skill-box.boosted {
+    border-color: var(--charm);
+    box-shadow: 0 0 18px rgba(200, 16, 46, 0.55), 0 0 8px rgba(242, 193, 78, 0.5);
+  }
+  .skill-key {
+    font-size: 10px;
+    letter-spacing: 0.6px;
+    color: var(--gold);
+    background: rgba(14, 20, 48, 0.8);
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(242, 193, 78, 0.35);
+  }
+  .skill-name { font-size: 12px; color: var(--text); margin-top: 2px; }
+  .skill-cd { font-size: 12px; color: var(--core); font-variant-numeric: tabular-nums; }
+  .skill-box.cooling .skill-cd { color: #b6bdd3; }
+
+  /* Mũi tên chỉ đèn ngoài màn hình */
+  #lantern-arrow {
+    position: fixed;
+    width: 42px;
+    height: 42px;
+    pointer-events: none;
+    z-index: 7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #lantern-arrow .tri {
+    width: 0;
+    height: 0;
+    border-left: 11px solid transparent;
+    border-right: 11px solid transparent;
+    border-bottom: 24px solid var(--lantern);
+    filter: drop-shadow(0 0 10px rgba(255, 179, 71, 0.95));
+  }
+
+  /* Toast & Gợi ý Ông Đăng */
+  #toast {
+    position: fixed;
+    top: 96px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-4px);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--core);
+    text-shadow: 0 1px 10px rgba(255, 179, 71, 0.45);
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    text-align: center;
+    z-index: 8;
+    background: rgba(14, 20, 48, 0.86);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 179, 71, 0.45);
+    padding: 8px 18px;
+    border-radius: 12px;
+    max-width: min(560px, 88vw);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  #fps-box {
+    position: fixed;
+    top: 66px;
+    left: 18px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px;
+    background: rgba(10, 14, 30, 0.72);
+    border: 1px solid rgba(143, 255, 160, 0.3);
+    padding: 4px 10px;
+    border-radius: 8px;
+    color: #9fffa8;
+    z-index: 20;
+  }
+  #help-bar {
+    position: fixed;
+    bottom: 6px;
+    left: 16px;
+    font-size: 11px;
+    color: rgba(245, 241, 230, 0.62);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    z-index: 6;
+  }
+
+  /* ==================== OVERLAYS: MENU, INTRO, PAUSE, SETTINGS, RESULT, DAWN ==================== */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(circle at 50% 35%, rgba(27, 35, 80, 0.62), rgba(14, 20, 48, 0.88));
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 15;
+    animation: fadeIn 0.28s ease-out;
+  }
+  .overlay.dawn {
+    background: radial-gradient(circle at 50% 25%, rgba(255, 233, 176, 0.45), rgba(255, 179, 71, 0.42) 40%, rgba(27, 35, 80, 0.86) 100%);
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .card {
+    width: min(640px, 94vw);
+    background: linear-gradient(175deg, rgba(24, 32, 72, 0.9), rgba(14, 20, 48, 0.94));
+    border: 1px solid rgba(242, 193, 78, 0.45);
+    border-radius: 24px;
+    padding: 30px 32px;
+    text-align: center;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 233, 176, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+  }
+  .card.compact { width: min(400px, 92vw); }
+
+  .emblem {
+    width: 66px;
+    height: 66px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 179, 71, 0.35), rgba(255, 179, 71, 0.04) 70%);
+    border: 1px solid rgba(255, 179, 71, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 28px rgba(255, 179, 71, 0.4);
+  }
+
+  .kicker {
+    font-size: 12px;
+    letter-spacing: 2.6px;
+    text-transform: uppercase;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  .overlay h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(32px, 5.5vw, 48px);
+    margin: 0;
+    color: var(--core);
+    text-shadow: 0 0 26px rgba(255, 179, 71, 0.55);
+    letter-spacing: 0.5px;
+    line-height: 1.15;
+  }
+  .overlay p {
+    max-width: 52ch;
+    color: rgba(245, 241, 230, 0.88);
+    margin: 0;
+    line-height: 1.65;
+    font-size: 15px;
+  }
+
+  .quote-box {
+    background: rgba(14, 20, 48, 0.65);
+    border-left: 3px solid var(--lantern);
+    border-radius: 0 12px 12px 0;
+    padding: 14px 18px;
+    font-style: italic;
+    color: var(--core);
+    text-align: left;
+    line-height: 1.65;
+    width: 100%;
+  }
+
+  .island-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+    margin-top: 4px;
+  }
+  @media (max-width: 560px) { .island-grid { grid-template-columns: 1fr; } }
+
+  .island-card {
+    background: rgba(14, 20, 48, 0.72);
+    border: 1px solid rgba(242, 193, 78, 0.28);
+    border-radius: 14px;
+    padding: 12px 10px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: transform 0.16s, border-color 0.16s, background 0.16s, box-shadow 0.16s;
+  }
+  .island-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--lantern);
+    background: rgba(34, 46, 98, 0.82);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), 0 0 16px rgba(255, 179, 71, 0.22);
+  }
+  .island-card .ic-num { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+  .island-card .ic-name { font-size: 16px; font-weight: 700; color: var(--core); }
+  .island-card .ic-meta { font-size: 11.5px; color: rgba(245, 241, 230, 0.7); }
+
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 6px; width: 100%; }
+  button.primary, button.sec {
+    font: 700 15px inherit;
+    padding: 11px 26px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.14s, box-shadow 0.14s, background 0.14s;
+  }
+  button.primary {
+    border: 0;
+    background: linear-gradient(135deg, #FFE9B0 0%, #FFB347 55%, #F2A03D 100%);
+    color: #0E1430;
+    box-shadow: 0 8px 24px rgba(255, 179, 71, 0.38);
+  }
+  button.primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(255, 179, 71, 0.55); }
+  button.sec {
+    background: rgba(14, 20, 48, 0.55);
+    color: var(--text);
+    border: 1px solid rgba(242, 193, 78, 0.5);
+  }
+  button.sec:hover { transform: translateY(-2px); background: rgba(242, 193, 78, 0.14); border-color: var(--gold); }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 14px;
+    background: rgba(14, 20, 48, 0.65);
+    border: 1px solid rgba(242, 193, 78, 0.22);
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+  }
+  .setting-row input[type="range"] { flex: 1; accent-color: var(--lantern); cursor: pointer; }
+  .setting-row span { min-width: 44px; text-align: right; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+  .score-banner {
+    background: rgba(14, 20, 48, 0.72);
+    border: 1px solid rgba(242, 193, 78, 0.45);
+    padding: 12px 22px;
+    border-radius: 14px;
+    color: var(--gold);
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.4px;
+  }
 </style>
 <script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
 </head>
 <body>
 
+<div id="vignette"></div>
+<div id="fx-flash"></div>
+
+<!-- HUD 7 thành phần -->
 <div id="hud" class="hidden">
   <div id="hud-tl">
-    <div class="pill" id="h-flames">🔥🔥🔥</div>
-    <div class="pill hidden" id="charm-badge">🧧 Bùa Gió <span id="h-charm">0.0s</span></div>
-    <div class="pill hidden" id="wind-badge">🍃 Gió mạnh</div>
+    <div class="glass-pill" id="h-flames" aria-label="Ngọn Lửa"></div>
+    <div class="glass-pill hidden" id="charm-badge">🧧 Bùa Gió · <span id="h-charm">0.0s</span></div>
+    <div class="glass-pill hidden" id="wind-badge">🍃 Gió mạnh</div>
   </div>
   <div id="hud-tc">
-    <div class="pill" id="h-time-pill">🌙 <span id="h-time">05:00</span></div>
-    <div style="font-size:12px;color:#F2C14E" id="h-night-name">Đêm 1 — Đảo Bến</div>
+    <div class="glass-pill" id="h-time-pill">🌙 <span id="h-time">05:00</span></div>
+    <div id="h-night-name">Đêm 1 — Đảo Bến</div>
   </div>
   <div id="hud-tr">
-    <div class="pill">🏮 <span id="h-lit">0/5</span></div>
-    <div class="pill">⭐ <span class="score-val" id="h-score">0</span></div>
+    <div class="glass-pill">🏮 <span class="lantern-val" id="h-lit">0/5</span></div>
+    <div class="glass-pill">⭐ <span class="score-val" id="h-score">0</span></div>
   </div>
   <div id="hud-bc">
     <div id="interact-prompt" class="hidden">E — Nạp ánh sáng (0/10)</div>
-    <div id="mote-bar"></div>
+    <div id="mote-bar" aria-label="Đom đóm đang mang"></div>
   </div>
   <div id="hud-br">
     <div class="skill-box" id="sk-dash">
       <div class="skill-key">SHIFT</div>
-      <div>Lướt</div>
+      <div class="skill-name">Lướt</div>
       <div class="skill-cd" id="cd-dash">Sẵn sàng</div>
     </div>
     <div class="skill-box" id="sk-pulse">
-      <div class="skill-key">F (3✦)</div>
-      <div>Tỏa Sáng</div>
+      <div class="skill-key">F · 3✦</div>
+      <div class="skill-name">Tỏa Sáng</div>
       <div class="skill-cd" id="cd-pulse">Sẵn sàng</div>
     </div>
   </div>
@@ -111,72 +516,104 @@
 <div id="lantern-arrow" class="hidden"><div class="tri"></div></div>
 <div id="toast"></div>
 <div id="fps-box" class="hidden">FPS: --</div>
-<div id="help-bar">WASD/Mũi tên: đi · Space: nhảy · Shift: lướt · E: nạp đèn · F: tỏa sáng · Q/R hoặc kéo chuột: xoay camera · Esc/P: tạm dừng</div>
+<div id="help-bar">WASD / Mũi tên: di chuyển · Space: nhảy · Shift: lướt · E: nạp đèn · F: tỏa sáng · Q/R hoặc kéo chuột: xoay camera · Esc/P: tạm dừng</div>
 
 <!-- Menu chính -->
 <div id="ov-menu" class="overlay">
-  <h1>Đảo Đèn Lồng</h1>
-  <h2>Ba Hòn Đảo</h2>
-  <p>Cùng Mây gom đom đóm, thắp lại các Đèn Lồng Lớn qua 3 Đêm (Đảo Bến, Đảo Cau, Đảo Chuông) để xua tan sương đen và đón Bình Minh.</p>
-  <div class="btn-row">
-    <button id="btn-play">Bắt đầu hành trình</button>
-    <button class="sec" id="btn-menu-settings">Cài đặt</button>
-  </div>
-  <div class="btn-row">
-    <button class="sec" data-night="1">Đêm 1: Đảo Bến</button>
-    <button class="sec" data-night="2">Đêm 2: Đảo Cau</button>
-    <button class="sec" data-night="3">Đêm 3: Đảo Chuông</button>
+  <div class="card">
+    <div class="emblem" aria-hidden="true">
+      <svg width="34" height="34" viewBox="0 0 36 36" fill="none">
+        <path d="M18 3V7M13 7H23M11 11C8.5 14.5 8.5 21.5 11 25H25C27.5 21.5 27.5 14.5 25 11H11Z" stroke="#FFB347" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="rgba(255,179,71,0.28)"/>
+        <ellipse cx="18" cy="18" rx="4.2" ry="6.2" fill="#FFE9B0"/>
+        <path d="M14 25H22M18 25V32M15.5 29.5L18 32L20.5 29.5" stroke="#C8102E" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="kicker">Hành trình người giữ đèn · 3 Đêm</div>
+    <h1>Đảo Đèn Lồng</h1>
+    <p>Cùng <strong>Mây</strong> gom đom đóm, vượt qua cầu tre, dốc đá và màn sương đen để thắp sáng toàn bộ Đèn Lồng Lớn trước khi trời sáng.</p>
+    <div class="btn-row">
+      <button class="primary" id="btn-play">Bắt đầu hành trình</button>
+      <button class="sec" id="btn-menu-settings">Cài đặt</button>
+    </div>
+    <div class="island-grid">
+      <button class="island-card" data-night="1">
+        <span class="ic-num">Đêm 1 · 5:00</span>
+        <span class="ic-name">Đảo Bến</span>
+        <span class="ic-meta">5 Đèn · Đảo tròn</span>
+      </button>
+      <button class="island-card" data-night="2">
+        <span class="ic-num">Đêm 2 · 5:30</span>
+        <span class="ic-name">Đảo Cau</span>
+        <span class="ic-meta">6 Đèn · Cầu tre · Gió Lạc</span>
+      </button>
+      <button class="island-card" data-night="3">
+        <span class="ic-num">Đêm 3 · 6:00</span>
+        <span class="ic-name">Đảo Chuông</span>
+        <span class="ic-meta">7 Đèn · 3 Tầng · Gió mạnh</span>
+      </button>
+    </div>
   </div>
 </div>
 
 <!-- Giới thiệu Đêm (lời Ông Đăng) -->
 <div id="ov-intro" class="overlay hidden">
-  <h2 id="intro-sub">Đêm 1</h2>
-  <h1 id="intro-title">Đảo Bến</h1>
-  <p id="intro-quote"></p>
-  <div class="btn-row">
-    <button id="btn-start-night">Vào Đêm</button>
-    <button class="sec" id="btn-intro-menu">Về Menu</button>
+  <div class="card">
+    <div class="kicker" id="intro-sub">Đêm 1 / 3</div>
+    <h1 id="intro-title">Đảo Bến</h1>
+    <div class="quote-box" id="intro-quote"></div>
+    <div class="btn-row">
+      <button class="primary" id="btn-start-night">Vào Đêm →</button>
+      <button class="sec" id="btn-intro-menu">Về Menu</button>
+    </div>
   </div>
 </div>
 
 <!-- Tạm dừng (Esc/P) -->
 <div id="ov-pause" class="overlay hidden">
-  <h1>Tạm dừng</h1>
-  <div class="btn-row" style="flex-direction:column;width:240px;">
-    <button id="btn-resume">Tiếp tục</button>
-    <button class="sec" id="btn-retry-pause">Chơi lại Đêm</button>
-    <button class="sec" id="btn-pause-settings">Cài đặt</button>
-    <button class="sec" id="btn-pause-menu">Về menu</button>
+  <div class="card compact">
+    <div class="kicker">Trò chơi đang dừng</div>
+    <h1>Tạm dừng</h1>
+    <div class="btn-row" style="flex-direction:column;">
+      <button class="primary" id="btn-resume">Tiếp tục</button>
+      <button class="sec" id="btn-retry-pause">Chơi lại Đêm</button>
+      <button class="sec" id="btn-pause-settings">Cài đặt</button>
+      <button class="sec" id="btn-pause-menu">Về menu</button>
+    </div>
   </div>
 </div>
 
 <!-- Cài đặt (lưu localStorage) -->
 <div id="ov-settings" class="overlay hidden">
-  <h1>Cài đặt</h1>
-  <div class="setting-row">
-    <label for="set-vol">Âm lượng</label>
-    <input id="set-vol" type="range" min="0" max="100" step="1">
-    <span id="set-vol-val">70%</span>
-  </div>
-  <div class="setting-row">
-    <label for="set-sens">Độ nhạy chuột</label>
-    <input id="set-sens" type="range" min="10" max="100" step="5">
-    <span id="set-sens-val">35%</span>
-  </div>
-  <div class="btn-row">
-    <button id="btn-settings-back">Quay lại</button>
+  <div class="card compact">
+    <div class="kicker">Tùy chỉnh</div>
+    <h1>Cài đặt</h1>
+    <div class="setting-row">
+      <label for="set-vol">Âm lượng</label>
+      <input id="set-vol" type="range" min="0" max="100" step="1">
+      <span id="set-vol-val">70%</span>
+    </div>
+    <div class="setting-row">
+      <label for="set-sens">Độ nhạy chuột</label>
+      <input id="set-sens" type="range" min="10" max="100" step="5">
+      <span id="set-sens-val">35%</span>
+    </div>
+    <div class="btn-row">
+      <button class="primary" id="btn-settings-back">Quay lại</button>
+    </div>
   </div>
 </div>
 
 <!-- Kết quả Đêm / Màn hình Bình Minh -->
 <div id="ov-result" class="overlay hidden">
-  <h1 id="res-title">Hoàn thành Đêm!</h1>
-  <p id="res-desc"></p>
-  <p style="color:#F2C14E;font-weight:700;font-size:20px" id="res-score"></p>
-  <div class="btn-row">
-    <button id="btn-res-primary">Đêm kế tiếp</button>
-    <button class="sec" id="btn-res-menu">Về menu</button>
+  <div class="card">
+    <div class="kicker" id="res-kicker">Kết quả Đêm</div>
+    <h1 id="res-title">Hoàn thành Đêm!</h1>
+    <p id="res-desc"></p>
+    <div class="score-banner" id="res-score"></div>
+    <div class="btn-row">
+      <button class="primary" id="btn-res-primary">Đêm kế tiếp</button>
+      <button class="sec" id="btn-res-menu">Về menu</button>
+    </div>
   </div>
 </div>
 
