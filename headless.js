@@ -2,7 +2,7 @@
 // Chế độ headless theo Test Contract v1.1.
 // Dùng: node headless.js --seed 1 --night 1|2|3 [--scenario f.json] [--inputs f.json]
 //                        --ticks N --out out.jsonl [--snapshot-every K]
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, openSync, writeSync, closeSync } from 'node:fs';
 import { Sim } from './src/sim.js';
 
 class UsageError extends Error {}
@@ -129,26 +129,39 @@ function main() {
   if (o.inputs) validateInputs(inputs);
 
   const sim = new Sim({ seed: o.seed, night: o.night, scenario });
-  const lines = [];
-  const emit = (obj) => lines.push(JSON.stringify(obj));
+  const fd = openSync(o.out, 'w');
+  let buf = [];
+  const flush = () => {
+    if (buf.length === 0) return;
+    writeSync(fd, buf.join('\n') + '\n');
+    buf = [];
+  };
+  const emit = (obj) => {
+    buf.push(JSON.stringify(obj));
+    if (buf.length >= 500) flush();
+  };
   const cur = { move: [0, 0], cam_yaw_deg: 0, jump: false, interact: false, pulse: false, dash: false, pause: false };
   let fi = 0;
 
-  for (const e of sim.drainEvents()) emit(e);
-  emit(sim.snapshot());
-  for (let k = 0; k < o.ticks && (sim.state === 'playing' || sim.state === 'paused'); k++) {
-    while (fi < inputs.frames.length && inputs.frames[fi].tick <= k) {
-      const f = inputs.frames[fi++];
-      for (const key of ['move', 'cam_yaw_deg', 'jump', 'interact', 'pulse', 'dash', 'pause']) {
-        if (f[key] !== undefined) cur[key] = f[key];
-      }
-    }
-    sim.step(cur);
+  try {
     for (const e of sim.drainEvents()) emit(e);
-    if (sim.tick % o.snapEvery === 0) emit(sim.snapshot());
+    emit(sim.snapshot());
+    for (let k = 0; k < o.ticks && (sim.state === 'playing' || sim.state === 'paused'); k++) {
+      while (fi < inputs.frames.length && inputs.frames[fi].tick <= k) {
+        const f = inputs.frames[fi++];
+        for (const key of ['move', 'cam_yaw_deg', 'jump', 'interact', 'pulse', 'dash', 'pause']) {
+          if (f[key] !== undefined) cur[key] = f[key];
+        }
+      }
+      sim.step(cur);
+      for (const e of sim.drainEvents()) emit(e);
+      if (sim.tick % o.snapEvery === 0) emit(sim.snapshot());
+    }
+    emit({ type: 'end', ticks: sim.tick, state: sim.state, score: sim.score });
+    flush();
+  } finally {
+    closeSync(fd);
   }
-  emit({ type: 'end', ticks: sim.tick, state: sim.state, score: sim.score });
-  writeFileSync(o.out, lines.join('\n') + '\n');
 }
 
 try {
