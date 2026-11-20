@@ -1,0 +1,88 @@
+Test Contract v1.1 — Hồi quy Phase 1 theo số chuẩn TICKET-02
+  ✓ game.contract.json khớp tuning v1.1 trong mã
+  ✓ snapshot: bắt đầu tick 0, đúng nhịp, dòng cuối là end
+  ✓ dựng scenario không phát sự kiện, không cộng điểm (đèn lit sẵn)
+  ✓ di chuyển: đạt tốc độ = player_speed, chuẩn hóa vector chéo
+  ✓ cam_yaw_deg=90 xoay hướng di chuyển (tiến -> +X)
+  ✓ nhặt đom đóm: sự kiện mote_picked (TICKET-02: điểm tính lúc nạp, không cộng lúc nhặt)
+  ✓ sức chứa: không nhặt quá carry_capacity (10)
+  ✓ nạp đèn: deposit + lantern_lit + điểm (+10/đom đóm nạp + 100 thắp); interact chỉ ăn khi false→true
+  ✓ nạp đèn: ngoài interact_radius (2 m) thì không nạp; nạp từng phần
+  ✓ thắng: thắp hết đèn -> game_over won/all_lit, điểm thưởng, dừng sớm
+  ✓ tỏa sáng: choáng, đẩy lùi, trừ pulse_cost (3), +per_stun (5), cooldown
+  ✓ tỏa sáng cần đủ pulse_cost (3): không đủ đom đóm thì không tỏa
+  ✓ choáng kéo dài đúng pulse_stun_s (2 s = 120 tick) rồi hết choáng
+  ✓ bị chạm: mất 1 lửa, rơi floor(carried*ratio), bất tử invuln_s (1.5 s)
+  ✓ hết lửa -> thua no_flames
+  ✓ hết đêm -> thua dawn đúng tick 60
+  ✓ safe_radius (6 m, đèn đã sáng): Bóng Mực không vào vùng quanh đèn, người đứng sát đèn không bị chạm
+  ✓ Bóng Mực chậm hơn người chơi và đuổi theo khi trong tầm phát hiện
+  ✓ sinh ngẫu nhiên: shade_spawned khi random_shades mặc định
+  ✓ tất định: cùng seed/scenario/inputs -> output giống hệt từng byte
+  ✓ tọa độ làm tròn tối đa 3 chữ số thập phân
+  ✓ lỗi: inputs sai định dạng -> mã 2, thông báo ở stderr
+  ✓ lỗi: thiếu tham số -> mã khác 0 (1)
+  ✓ hiệu năng: 18000 tick (5 phút) < 2 giây
+
+Hồi quy Phase 1: 24 đạt, 0 lỗi
+Phase 2 M1 — Tuning v1.1, Contract & 3 Nights Data
+  ✓ game.contract.json là v1.1, đúng team và khớp toàn bộ số chuẩn TICKET-02
+  ✓ Đêm 1 (Đảo Bến): 5 đèn đúng tọa độ, 24 điểm sinh đom đóm, 12 điểm sinh Bóng Mực
+  ✓ Đêm 2 (Đảo Cau): 2 đảo + cầu, 6 đèn, 24 điểm đom đóm, 16 điểm Bóng Mực, 2 bục nhảy, 1 Bùa Gió
+  ✓ Đêm 3 (Đảo Chuông): 3 tầng + 2 dốc + tháp + bục nhảy, 7 đèn, 30 điểm đom đóm, 16 điểm Bóng Mực, 2 Bùa Gió
+
+M1: 4 đạt, 0 lỗi
+Phase 2 M2 — Terrain & Movement
+  ✓ jump: vận tốc 7 m/s, g=-20, chỉ nhảy khi chạm đất
+  ✓ dash: 14 m/s trong 12 tick, hướng mặt khi đứng yên (+Z), hồi chiêu 90 tick, giữ độ cao trên không, không bất tử
+  ✓ pad-night2: 2 bục nhảy bắn qua đảo kia, phím di chuyển không ghi đè
+  ✓ pad-night3: bục (0,3,13) bắn hướng -Z đáp lên tầng 2 (Y=6)
+  ✓ bridge: đi qua cầu tre Đêm 2 không rơi; bước lệch z > 2 thì rơi
+  ✓ cliff-ramp: Đêm 3 vách tầng 1/2 & tháp chặn; 2 dốc 30° & 150° đi lên được Y=3
+  ✓ fall-respawn: rơi Y<-10 đúng 1 lần, bỏ qua bất tử, mất hết đom đóm, chờ 60 tick hồi sinh bất tử 90; hết lửa thua ngay
+  ✓ wind-night3: cứ 30 s có cơn gió 5 s đẩy 2 m/s, snapshot ghi wind, wind_enabled=false tắt gió
+
+M2: 8 đạt, 0 lỗi
+Phase 2 M3 — Motes, Lanterns, Safe Zone & Pulse
+  ✓ mote-schedule: 20 điểm khác nhau lúc đầu, sinh ở tick 240/480, dừng khi hết điểm trống (24 ở Đêm 1, 30 ở Đêm 3)
+  ✓ deposit-multi: nạp nhiều lần nhớ tiến độ, hòa khoảng cách chọn id nhỏ hơn, +10/đom đóm nạp + 100 thắp
+  ✓ safe-zone-block: đèn chưa sáng KHÔNG chặn Bóng Mực; đèn đã sáng chặn ở mép 6 m
+  ✓ lantern-lit-expel: Bóng Mực đang trong vùng 6 m khi đèn vừa thắp bị đẩy ra mép trong <=30 tick và không gây sát thương
+  ✓ pulse: tâm 3D (y+0.8 <= 5 m), đẩy tổng 4 m trong 15 tick, trùng XZ đẩy +X, làm mới khi pulse lại (+5), dừng gặp tháp
+  ✓ hit-drop: rơi floor(mang/2) vào vành 1.5-2.5 m, kind=dropped, TTL 480 tick, không nhặt ngay tick rơi, bất tử 90 tick
+
+M3: 6 đạt, 0 lỗi
+Phase 2 M4 — Shade 5-State FSM & Spawn Schedule
+  ✓ shade-fsm: đủ 5 trạng thái, phát hiện <=12 m, bỏ đuổi >18 m, recoil lùi 2 m trong 60 tick
+  ✓ shade-schedule: 2 con tick 300 (trạng thái spawning), đúng chu kỳ & trần 3 đêm, cách người >=15 m, Đêm 3 chạy 4.5 m/s
+
+M4: 2 đạt, 0 lỗi
+Phase 2 M5 — Drifters (Gió Lạc) & Wind Charms (Bùa Gió)
+  ✓ drifter-steal: idle->chase (mang>=5 & <=15m), cướp min(3,mang) bất chấp bất tử & vùng an toàn, không mất lửa, flee 240t -> removed
+  ✓ drifter-pulse-chase: Tỏa Sáng trúng Gió Lạc đang chase -> chuyển flee không cướp
+  ✓ drifter-pulse-flee-drop: Tỏa Sáng trúng Gió Lạc đang flee có đồ -> thả lại toàn bộ tại chỗ, drifter_drop, biến mất sau 120 tick
+  ✓ charm: Bùa Gió Đêm 2/3, hiệu lực 600t (7.2 m/s, lướt không hồi chiêu nhưng bỏ qua khi đang lướt), làm mới & hồi sau 2700t
+
+M5: 4 đạt, 0 lỗi
+Phase 2 M6 — Schema v1.1, Pause/Resume & 12-Step Tick Order
+  ✓ pause-resume: tick tăng nhưng sim_tick, thời gian, hồi chiêu, bùa đứng yên; snapshot state=paused; sự kiện paused/resumed
+  ✓ win-at-timeout: thắp đèn cuối đúng tick hết giờ vẫn thắng (all_lit)
+  ✓ flames-vs-win: cùng tick vừa thắp đủ đèn vừa hết Ngọn Lửa -> luôn thua no_flames
+  ✓ tick-order: Bước 9 Gió Lạc cướp TRƯỚC Bóng Mực gây hit
+  ✓ schema-v1.1: night_start ở tick 0, đủ mọi trường snapshot v1.1, mã thoát 1 cho --night 4 và mã 2 cho scenario lỗi
+
+M6: 5 đạt, 0 lỗi
+Phase 2 M7 — Full-Night Performance, 3-Night Determinism & Pure Core Audit
+    [Đêm 1: 18000 tick -> 719 ms, 1026992 bytes, byte-identical PASS]
+    [Đêm 2: 19800 tick -> 769 ms, 412807 bytes, byte-identical PASS]
+    [Đêm 3: 21600 tick -> 843 ms, 1368518 bytes, byte-identical PASS]
+  ✓ night-full: cả 3 đêm đầy đủ (18000/19800/21600 tick) chạy headless <= 30 s và tất định byte-by-byte
+  ✓ pure-core-audit: src/ không dùng Math.random, Date, performance, DOM, I/O hay import từ public/
+
+M7: 2 đạt, 0 lỗi
+Phase 2 M8 — 3D GUI, Standard Palette, HUD, Settings & Audio Checks
+  ✓ cú pháp hợp lệ: server.js, public/main.js, public/audio.js
+  ✓ bảng màu chuẩn & công thức ánh sáng môi trường 0.15 + 0.55 * (đèn sáng / tổng đèn)
+  ✓ đủ 7 thành phần HUD, luồng 3 Đêm, Pause 4 nút, Settings localStorage & 10 SFX
+
+M8: 3 đạt, 0 lỗi

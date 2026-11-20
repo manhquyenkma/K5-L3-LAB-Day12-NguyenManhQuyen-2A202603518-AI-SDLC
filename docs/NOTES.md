@@ -42,3 +42,34 @@
 ### Đánh giá nhanh Phase 1
 - **Đạt:** Lõi `src/sim.js` thuần & tất định 60 tick/s; `headless.js` & `game.contract.json` khớp 100% Test Contract v1.0; 24/24 test tự động xanh; bot tham lam chứng minh thắng Đêm 1; hiệu năng 18.000 tick < 2s; sáng tạo hiển thị/âm thanh tách hoàn toàn trong `public/`.
 - **Đang kiểm chứng trực tiếp:** Khởi chạy `node server.js` tại `http://localhost:8080` để chơi thử trên trình duyệt thật (di chuyển, nhặt, nạp đèn, tỏa sáng, chơi lại) và chụp ảnh màn hình lưu vào `evidence/`.
+
+---
+
+# Ghi chú Phase 2: "Ba hòn đảo" (TICKET-02, Contract v1.1)
+
+- Chi tiết tiêu chí nghiệm thu Phần 3: xem [SPEC-PHASE2.md](SPEC-PHASE2.md).
+- Chi tiết 8 luật Phase 1 bị thay thế + 11 giả định mặc định: xem [ASSUMPTIONS.md](ASSUMPTIONS.md).
+
+## Nhật ký dùng AI theo mốc (M0 → M9)
+
+| Mốc | Công cụ | Việc giao | Kiểm chứng |
+|---|---|---|---|
+| M0 | Antigravity (Gemini) | Lưu `TICKET-02.md`, `PHASE2_PLAN.md`, `SPEC-PHASE2.md`, `ASSUMPTIONS.md`, cập nhật `AGENTS.md` + tạo 3 skill (`sim-core`, `headless-contract`, `night-data`) | `npm test` baseline 24/24 xanh, commit `e15957f` |
+| M1 | Antigravity (Gemini) | Số liệu chuẩn v1.1 (`src/tuning.js`), `game.contract.json` v1.1, bản đồ 3 đêm (`src/nights/n1..n3.js`), cập nhật hồi quy Phase 1 | `npm run contract` + `npm test` 28/28 xanh, commit `4becc26` |
+| M2 | Antigravity (Gemini) | `src/terrain.js` (đảo, cầu, 3 tầng, vách, 2 dốc, tháp, bục nhảy), vận tốc/accel, nhảy, lướt, rơi `Y < -10`, gió Đêm 3 | `npm test` 36/36 xanh (8 scenario M2), commit `5062ed9` |
+| M3 | Antigravity (Gemini) | Lịch đom đóm 20/30/240t, TTL 480t, nạp nhiều lần + hòa id, vùng an toàn 6 m đẩy ≤ 30t, Tỏa Sáng 3D đẩy 15t + làm mới | `npm test` 42/42 xanh (6 scenario M3), commit `efe7375` |
+| M4 | Antigravity (Gemini) | `src/entities/shade.js` FSM 5 trạng thái (`spawning/wander/chase/recoil/stunned`), 12/18 m, recoil 2 m/60t, lịch sinh 3 đêm | `npm test` 44/44 xanh, commit `cec734c` |
+| M5 | Antigravity (Gemini) | `src/entities/drifter.js` (Gió Lạc) + Bùa Gió `C1/C2` (600t, 7.2 m/s, lướt không hồi chiêu, tái xuất 2700t) | `npm test` 48/48 xanh, commit `993ebac` |
+| M6 | Antigravity (Gemini) | Schema v1.1 đầy đủ, `night_start`, `pause`/`resume`, ưu tiên thắng/thua & thứ tự 12 bước tick | `npm test` 53/53 xanh, commit `180e705` |
+| M7 | Antigravity (Gemini) | Ghi log theo lô `headless.js`, test hiệu năng 3 đêm đầy đủ (158–517 ms ≪ 30 s), tất định byte-by-byte, `pure-core-audit` | `npm test` 55/55 xanh, commit `01ce9f3` |
+| M8 | Antigravity (Gemini) | GUI 3D 3 đêm (`public/index.html`, `public/main.js`, `public/audio.js`): Menu → Intro Ông Đăng → 3 Đêm → Bình Minh, Pause, Settings, 10 SFX, 7 thành phần HUD, bảng màu chuẩn & ánh sáng môi trường | `npm test` 58/58 xanh, commit `0fdc560` |
+| M9 | Antigravity (Gemini) | Cập nhật `scripts/bot.mjs` (v1.1), CI, `SPEC-PHASE2.md`, `README.md`, xuất log 3 đêm & báo cáo test `evidence/phase2/` | `npm test` 58/58 xanh + `node scripts/bot.mjs 1` thắng Đêm 1 |
+
+## Lỗi phát hiện & cách sửa trong Phase 2
+- **Bước 4 chạy trước Bước 5 trong test `deposit-multi` (M3):** Đom đóm đặt trong bán kính 1 m bị nhặt ngay ở tick 0 trước khi nạp lần 1 → sửa kịch bản test đặt đom đóm ở `z = 2.2` để tách rõ 2 lần nạp.
+- **Regex `pure-core-audit` khớp chú thích cuối dòng (M7):** `src/tuning.js` có comment cuối dòng chứa `public/` → sửa bộ quét lọc cả comment `//` cuối dòng thay vì chỉ đầu dòng.
+- **Tọa độ góc Đêm 3:** Kiểm chứng chéo bằng toán học xác nhận `x = cx + r*cos(deg)`, `z = cz + r*sin(deg)` khớp đồng thời cả 5 đèn Đêm 1, 2 dốc `30°/150°` và vành khăn `z > 0` (`20°..160°`) của Đêm 3.
+
+## Đánh giá nhanh Phase 2
+- **Đạt:** 58/58 test tự động xanh (24 hồi quy Phase 1 số chuẩn + 34 test Phase 2 phủ toàn bộ scenario bắt buộc); 3 đêm đầy đủ chạy headless 0.16–0.52 s (≪ 30 s) và khớp byte-by-byte; lõi `src/` 100% thuần; bản 3D đủ luồng 3 Đêm, Pause, Settings, 10 SFX, 7 HUD, bảng màu chuẩn.
+- **Cần kiểm chứng bổ sung trên trình duyệt thật:** Chơi thử 3 đêm tại `http://localhost:8080/?fps` trên máy để ghi nhận FPS thực tế và chụp ảnh màn hình mỗi đêm.
