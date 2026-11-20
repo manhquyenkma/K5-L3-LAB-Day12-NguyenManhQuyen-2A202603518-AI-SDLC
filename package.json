@@ -8,7 +8,7 @@
     "start": "node server.js",
     "headless": "node headless.js",
     "contract": "node scripts/gen-contract.js",
-    "test": "node tests/run.mjs"
+    "test": "node tests/all.mjs"
   },
   "dependencies": {
     "three": "0.160.0"

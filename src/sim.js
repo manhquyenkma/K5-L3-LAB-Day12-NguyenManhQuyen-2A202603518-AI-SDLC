@@ -1,6 +1,7 @@
 // Lõi logic Đảo Đèn Lồng: thuần JS, không DOM, không Date/Math.random.
 // Dùng chung cho chế độ headless (Node) và bản chơi trên trình duyệt.
 import { TUNING as T, EXTRA as X } from './tuning.js';
+import { getNight } from './nights/index.js';
 
 export const DT = 1 / 60;
 export const TPS = 60;
@@ -19,40 +20,37 @@ export const r3 = (v) => Math.round(v * 1000) / 1000 + 0; // +0: đổi -0 thàn
 const ticks = (s) => Math.round(s * TPS);
 const d2 = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]); // khoảng cách mặt phẳng XZ
 
-function defaultLanterns() {
-  const out = [];
-  for (let i = 0; i < T.lantern_count_night1; i++) {
-    const ang = (i * 2 * Math.PI) / T.lantern_count_night1;
-    out.push({
-      id: 'L' + (i + 1),
-      pos: [r3(X.lantern_ring_radius * Math.sin(ang)), 0, r3(X.lantern_ring_radius * Math.cos(ang))],
-      lit: false,
-      deposited: 0,
-    });
-  }
-  return out;
+function defaultLanterns(nightCfg) {
+  return nightCfg.lanterns.map((L) => ({
+    id: L.id,
+    pos: L.pos.slice(),
+    lit: false,
+    deposited: 0,
+  }));
 }
 
 export class Sim {
-  constructor({ seed = 1, scenario = null } = {}) {
+  constructor({ seed = 1, night = 1, scenario = null } = {}) {
     const sc = scenario || {};
+    this.nightId = night;
+    this.nightCfg = getNight(night);
     this.rng = mulberry32(seed);
     this.tick = 0;
     this.state = 'playing';
     this.score = 0;
     this.events = [];
     this.prev = { jump: false, interact: false, pulse: false };
-    this.t0 = sc.time_left_s ?? T.night1_duration_s;
+    this.t0 = sc.time_left_s ?? this.nightCfg.duration_s;
     this.randomMotes = sc.random_motes !== false;
     this.randomShades = sc.random_shades !== false;
-    this.player = { pos: [0, 0, 0], vy: 0, carried: 0, flames: T.flames, invuln: 0, pulseCd: 0 };
-    this.lanterns = defaultLanterns();
+    this.player = { pos: this.nightCfg.spawn.slice(), vy: 0, carried: 0, flames: T.flames, invuln: 0, pulseCd: 0 };
+    this.lanterns = defaultLanterns(this.nightCfg);
     this.motes = [];
     this.shades = [];
     this.nextMote = 1;
     this.nextShade = 1;
-    this.nextShadeTick = ticks(X.shade_first_spawn_s);
-    this.nextMoteTick = ticks(X.mote_respawn_s);
+    this.nextShadeTick = X.shade_first_spawn_ticks;
+    this.nextMoteTick = X.mote_respawn_ticks;
 
     if (sc.player) {
       if (sc.player.pos) this.player.pos = sc.player.pos.slice();
@@ -125,9 +123,10 @@ export class Sim {
     this._emit('shade_spawned', { id });
   }
 
-  // Đèn là nơi trú: Bóng Mực không vào được trong safe_radius (mọi đèn).
+  // Vùng an toàn: chỉ đèn đã sáng, bán kính safe_radius (TICKET-02).
   _repel(pos) {
     for (const L of this.lanterns) {
+      if (!L.lit) continue;
       let dx = pos[0] - L.pos[0], dz = pos[2] - L.pos[2];
       let d = Math.hypot(dx, dz);
       if (d < T.safe_radius + 0.001) { // biên dư 1 mm: sau khi làm tròn 3 số lẻ vẫn > safe_radius
@@ -172,30 +171,33 @@ export class Sim {
       if (p.pos[1] <= 0) { p.pos[1] = 0; p.vy = 0; }
     }
 
-    // 2. Nhặt đom đóm
+    // 2. Nhặt đom đóm (TICKET-02: không cộng điểm lúc nhặt, cộng +per_mote lúc nạp)
     for (const m of this.motes.slice()) {
       if (p.carried >= T.carry_capacity) break;
       if (d2(p.pos, m.pos) <= T.pickup_radius) {
         this.motes.splice(this.motes.indexOf(m), 1);
         p.carried++;
-        this.score += T.score.per_mote;
         this._emit('mote_picked', { carried: p.carried });
       }
     }
 
-    // 3. Nạp ánh sáng vào đèn gần nhất chưa sáng
+    // 3. Nạp ánh sáng vào đèn gần nhất chưa sáng (hòa chọn id nhỏ hơn)
     if (interactEdge && p.carried > 0) {
       let best = null, bd = Infinity;
       for (const L of this.lanterns) {
         if (L.lit) continue;
         const d = d2(p.pos, L.pos);
-        if (d <= T.interact_radius && d < bd) { best = L; bd = d; }
+        if (d <= T.interact_radius && (d < bd - 1e-9 || (Math.abs(d - bd) <= 1e-9 && best && L.id < best.id))) {
+          best = L;
+          bd = d;
+        }
       }
       if (best) {
         const amount = Math.min(p.carried, T.lantern_cost - best.deposited);
         if (amount > 0) {
           p.carried -= amount;
           best.deposited += amount;
+          this.score += amount * T.score.per_mote;
           this._emit('deposit', { lantern_id: best.id, amount, deposited: best.deposited });
         }
         if (best.deposited >= T.lantern_cost) {
@@ -264,12 +266,12 @@ export class Sim {
 
     // 7. Sinh ngẫu nhiên (chỉ khi scenario cho phép)
     if (this.randomShades && this.tick >= this.nextShadeTick) {
-      if (this.shades.length < X.max_shades) this._spawnShade();
-      this.nextShadeTick += ticks(X.shade_spawn_every_s);
+      if (this.shades.length < this.nightCfg.shadeMax) this._spawnShade();
+      this.nextShadeTick += this.nightCfg.shadeIntervalTicks;
     }
     if (this.randomMotes && this.tick >= this.nextMoteTick) {
       if (this.motes.length < X.max_motes) this._spawnMote();
-      this.nextMoteTick += ticks(X.mote_respawn_s);
+      this.nextMoteTick += X.mote_respawn_ticks;
     }
 
     // 8. Kết thúc

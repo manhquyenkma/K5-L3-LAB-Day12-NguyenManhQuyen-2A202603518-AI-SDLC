@@ -29,3 +29,4 @@
 | 8 | Hướng "về tâm đảo kia" của bục nhảy Đêm 2 | Vector chuẩn hóa XZ từ vị trí bục đến tâm đảo đối diện: từ `(20,0,18)` hướng về `(70,0,0)`, từ `(50,0,-18)` hướng về `(0,0,0)`. |
 | 9 | Hướng mặt ban đầu của Mây khi đứng yên ở lần lướt đầu | Quay mặt về `+Z` (`facing = [0, 1]`), đúng mô tả điểm xuất phát trong đề. |
 | 10 | Độ cao mắt/tâm Bóng Mực cho khoảng cách 3D Tỏa Sáng | Tâm Bóng Mực nằm ở `pos.y` (khi sinh trên mặt đất `groundY`, Bóng Mực có `pos.y = groundY + 1.0`, nhất quán Phase 1). |
+| 11 | Điểm xuất phát Đêm 2 và Đêm 3 | Đêm 2 xuất phát tại `(0,0,0)` trên Đảo A quay mặt `+Z`. Đêm 3 vì tâm `(0,0)` có tầng 2 (`Y=6`) và tháp chuông bán kính 2 m không leo được nên đặt xuất phát trên tầng 0 tại `(0,0,-15)` quay mặt `+Z` hướng về trung tâm đảo. |
