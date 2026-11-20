@@ -16,7 +16,7 @@ export const NIGHT_1 = {
   id: 1,
   name: 'Đảo Bến',
   intro: 'Ông Đăng: "Sương đen đã phủ kín Đảo Bến. Hãy gom đom đóm, thắp lại 5 Đèn Lồng Lớn trước khi trời sáng, và coi chừng Bóng Mực trong màn sương."',
-  duration_s: 300,
+  duration_s: 240,
   spawn: [0, 0, 0],
   facing: [0, 1],
   islands: [{ id: 'A', cx: 0, cz: 0, r: 40, y: 0 }],

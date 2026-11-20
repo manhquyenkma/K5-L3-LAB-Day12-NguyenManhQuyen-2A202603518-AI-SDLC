@@ -54,7 +54,7 @@ function validateScenario(s, night) {
   if (s.player !== undefined) {
     if (!isObj(s.player)) bad('player phải là object');
     if (s.player.pos !== undefined && !isVec3(s.player.pos)) bad('player.pos phải là [x,y,z]');
-    for (const k of ['carried', 'flames', 'invuln_ticks', 'dash_cd_ticks', 'pulse_cd_ticks', 'charm_ticks']) {
+    for (const k of ['carried', 'successful_lights', 'flames', 'invuln_ticks', 'dash_cd_ticks', 'pulse_cd_ticks', 'charm_ticks']) {
       if (s.player[k] !== undefined && !nonNegInt(s.player[k])) bad(`player.${k} phải là số nguyên >= 0`);
     }
   }
@@ -69,6 +69,7 @@ function validateScenario(s, night) {
       if (z.id !== undefined && typeof z.id !== 'string') bad('shade.id phải là chuỗi');
       if (z.state !== undefined && typeof z.state !== 'string') bad('shade.state phải là chuỗi');
       if (z.state_ticks_left !== undefined && !nonNegInt(z.state_ticks_left)) bad('shade.state_ticks_left phải là số nguyên >= 0');
+      if (z.target_lantern_id !== undefined && typeof z.target_lantern_id !== 'string') bad('shade.target_lantern_id phải là chuỗi');
     }
   }
   if (s.drifters !== undefined) {
@@ -98,6 +99,8 @@ function validateScenario(s, night) {
       if (l.pos !== undefined && !isVec3(l.pos)) bad('lantern.pos phải là [x,y,z]');
       if (l.deposited !== undefined && !nonNegInt(l.deposited)) bad('lantern.deposited phải là số nguyên >= 0');
       if (l.lit !== undefined && typeof l.lit !== 'boolean') bad('lantern.lit phải là boolean');
+      if (l.ever_lit !== undefined && typeof l.ever_lit !== 'boolean') bad('lantern.ever_lit phải là boolean');
+      if (l.fuel !== undefined && !(isNum(l.fuel) && l.fuel >= 0 && l.fuel <= 100)) bad('lantern.fuel phải là số trong [0,100]');
       const m = /^L(\d+)$/.exec(l.id);
       if ((!m || Number(m[1]) < 1 || Number(m[1]) > maxL) && l.pos === undefined) bad(`lantern ${l.id} không có trong màn và thiếu pos`);
     }

@@ -22,7 +22,7 @@ export const NIGHT_3 = {
   id: 3,
   name: 'Đảo Chuông',
   intro: 'Ông Đăng: "Đỉnh Đảo Chuông là nơi sương đen dày đặc nhất. Gió đêm thổi xiết, Bóng Mực nhanh hơn — hãy leo lên ba tầng đá, thắp đủ 7 Đèn Lồng Lớn để đón Bình Minh!"',
-  duration_s: 360,
+  duration_s: 300,
   spawn: [0, 0, -15],
   facing: [0, 1],
   islands: [{ id: 'A', cx: 0, cz: 0, r: 45, y: 0 }],

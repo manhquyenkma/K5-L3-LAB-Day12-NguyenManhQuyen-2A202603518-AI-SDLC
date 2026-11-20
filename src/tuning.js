@@ -1,4 +1,4 @@
-// Nguồn sự thật DUY NHẤT cho số liệu chuẩn Phase 2 (TICKET-02, Test Contract v1.1).
+// Nguồn sự thật DUY NHẤT cho số liệu chuẩn Phase 3 (TICKET-03, Test Contract v1.2).
 // game.contract.json được sinh từ đây (npm run contract) và có test đối chiếu.
 export const TUNING = {
   player_speed: 6,
@@ -6,15 +6,17 @@ export const TUNING = {
   dash_duration_s: 0.2,
   dash_cooldown_s: 1.5,
   carry_capacity: 10,
+  capacity_max: 20,
   lantern_cost: 10,
+  relight_cost: 5,
   lantern_count_night1: 5,
   pickup_radius: 1,
   interact_radius: 2,
   pulse_cost: 3,
   pulse_radius: 5,
-  night1_duration_s: 300,
-  night2_duration_s: 330,
-  night3_duration_s: 360,
+  night1_duration_s: 240,
+  night2_duration_s: 270,
+  night3_duration_s: 300,
   flames: 3,
   invuln_s: 1.5,
   hit_drop_ratio: 0.5,
@@ -25,18 +27,27 @@ export const TUNING = {
   shade_speed: 4,
   shade_hit_radius: 1,
   fall_enabled: true,
+  fuel_max: 100,
+  fuel_decay_per_s: 1.0,
+  fuel_per_mote: 10,
+  win_ratio: 0.6,
+  drain_per_s: 5,
+  low_fuel_threshold: 30,
   score: {
-    per_mote: 10,
+    per_mote: 5,
     per_lantern: 100,
+    per_relight: 40,
     per_stun: 5,
-    per_second_left: 2,
+    per_drain_stun: 15,
+    per_second_left: 0,
     per_flame_left: 50,
+    per_lit_dawn: 50,
   },
 };
 
 // Hằng số chuẩn ngoài khóa contract (khai rõ trong README & docs/ASSUMPTIONS.md).
 export const EXTRA = {
-  island_radius: 40, // Đêm 1 (giữ tương thích public/main.js trước M8)
+  island_radius: 40,
   player_accel: 60, // đạt 6.0 m/s trong 0.1 s (6 tick)
   jump_speed: 7,
   gravity: 20, // trọng lực -20 m/s^2
@@ -59,10 +70,14 @@ export const EXTRA = {
   shade_spawn_min_dist: 15,
   shade_detect_r: 12,
   shade_leash_r: 18,
+  shade_drain_r: 2,
+  shade_drain_alert_r: 6,
+  shade_drain_event_ticks: 60,
   shade_recoil_m: 2,
   shade_recoil_ticks: 60,
   shade_wander_speed: 2,
   shade_height: 1,
+  capacity_per_light: 2,
   drifter_spawn_interval_ticks: 1200,
   drifter_max: 2,
   drifter_idle_speed: 2,

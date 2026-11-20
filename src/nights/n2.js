@@ -15,7 +15,7 @@ export const NIGHT_2 = {
   id: 2,
   name: 'Đảo Cau',
   intro: 'Ông Đăng: "Đảo Cau chia đôi qua cây cầu tre hẹp. Đừng ngại dùng bục nhảy gió và Bùa Gió, nhưng hãy giữ chặt đom đóm trước lũ Gió Lạc tinh quái."',
-  duration_s: 330,
+  duration_s: 270,
   spawn: [0, 0, 0],
   facing: [0, 1],
   islands: [
