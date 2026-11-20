@@ -154,7 +154,7 @@ export function stepShade(z, sim, dt) {
 
   // Chuyển đổi giữa wander và chase (12 m phát hiện / 18 m bỏ đuổi). Bóng đang chase KHÔNG đổi mục tiêu sang đèn yếu.
   if (z.state === 'wander') {
-    if (p.respawnTicks === 0 && distToPlayer <= X.shade_detect_r) {
+    if (!sim.benchMode && p.respawnTicks === 0 && distToPlayer <= X.shade_detect_r) {
       z.state = 'chase';
       z.targetLanternId = null;
       z.drainTickCount = 0;
@@ -211,8 +211,8 @@ export function stepShade(z, sim, dt) {
     return;
   }
 
-  // Không có đèn yếu -> đi về đèn tắt gần nhất (hòa chọn id nhỏ hơn); nếu tất cả đèn đã sáng đủ dầu -> lượn ngẫu nhiên
-  const unlit = findNearestLantern(sim.lanterns, z.pos[0], z.pos[2], (L) => !L.lit);
+  // Không có đèn yếu -> đi về đèn tắt gần nhất (trong benchMode lượn tự do khắp đảo để giữ 200 bóng rải đều)
+  const unlit = sim.benchMode ? null : findNearestLantern(sim.lanterns, z.pos[0], z.pos[2], (L) => !L.lit);
   if (unlit) {
     const dl = d2(z.pos[0], z.pos[2], unlit.pos[0], unlit.pos[2]);
     if (dl > 1.5) {

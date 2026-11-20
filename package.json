@@ -1,14 +1,17 @@
 {
   "name": "dao-den-long",
   "version": "1.0.0",
-  "description": "Đảo Đèn Lồng - Day 12 AI SDLC Lab, Phase 1",
+  "description": "Đảo Đèn Lồng — Game 3D & Headless Simulation (Day 12 AI SDLC Lab, v1.0.0, Contract v1.3)",
   "type": "module",
   "private": true,
   "scripts": {
     "start": "node server.js",
     "headless": "node headless.js",
+    "bench": "node bench.js --seed 42 --duration 30 --out bench.json",
+    "soak": "node soak.js --seed 7 --nights 10 --out soak.json",
     "contract": "node scripts/gen-contract.js",
-    "test": "node tests/all.mjs"
+    "test": "node tests/all.mjs",
+    "build:release": "node scripts/build-release.mjs"
   },
   "dependencies": {
     "three": "0.160.0"

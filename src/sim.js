@@ -31,6 +31,7 @@ export const r3 = (v) => Math.round(v * 1000) / 1000 + 0; // +0: đổi -0 thàn
 export const r1 = (v) => Math.round(v * 10) / 10 + 0;
 const ticks = (s) => Math.round(s * TPS);
 const d2 = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]); // khoảng cách mặt phẳng XZ
+const EMPTY_EVENTS = Object.freeze([]);
 
 function defaultLanterns(nightCfg) {
   return nightCfg.lanterns.map((L) => ({
@@ -45,8 +46,9 @@ function defaultLanterns(nightCfg) {
 }
 
 export class Sim {
-  constructor({ seed = 1, night = 1, scenario = null } = {}) {
+  constructor({ seed = 1, night = 1, scenario = null, benchMode = false } = {}) {
     const sc = scenario || {};
+    this.benchMode = !!benchMode;
     this.nightId = night;
     this.nightCfg = getNight(night);
     this.rng = mulberry32(seed);
@@ -96,6 +98,7 @@ export class Sim {
     this.nextMoteTick = X.mote_respawn_ticks;
     this.nextDrifterTick = X.drifter_spawn_interval_ticks;
     this._moveTmp = { x: 0, z: 0, y: 0, blocked: false };
+    this._shadeSortBuf = [];
 
     if (sc.player) {
       if (sc.player.pos) this.player.pos = sc.player.pos.slice();
@@ -209,9 +212,18 @@ export class Sim {
   }
 
   drainEvents() {
+    if (this.events.length === 0) return EMPTY_EVENTS;
     const e = this.events;
     this.events = [];
     return e;
+  }
+
+  _sortedShades() {
+    const buf = this._shadeSortBuf;
+    buf.length = this.shades.length;
+    for (let i = 0; i < this.shades.length; i++) buf[i] = this.shades[i];
+    if (buf.length > 1) buf.sort(compareShadeId);
+    return buf;
   }
 
   _spawnMote(near = null, initial = false) {
@@ -369,7 +381,11 @@ export class Sim {
     const interactEdge = !!inp.interact && !this.prev.interact;
     const pulseEdge = !!inp.pulse && !this.prev.pulse;
     const dashEdge = !!inp.dash && !this.prev.dash;
-    this.prev = { jump: !!inp.jump, interact: !!inp.interact, pulse: !!inp.pulse, dash: !!inp.dash, pause: !!inp.pause };
+    this.prev.jump = !!inp.jump;
+    this.prev.interact = !!inp.interact;
+    this.prev.pulse = !!inp.pulse;
+    this.prev.dash = !!inp.dash;
+    this.prev.pause = !!inp.pause;
 
     // Bước 2: Giảm các bộ đếm + trừ dầu đèn (hao tự nhiên 1/60 + Bóng Mực hút 5/60) -> ngay sau đó tắt đèn có fuel <= 0
     if (p.invuln > 0) p.invuln--;
@@ -400,35 +416,37 @@ export class Sim {
       }
     }
 
-    // Hao dầu tự nhiên 1/60 mỗi tick cho đèn đang sáng
-    for (let i = 0; i < this.lanterns.length; i++) {
-      const L = this.lanterns[i];
-      if (L.lit) L.fuelU -= DECAY_PER_TICK_U;
-    }
-    // Bóng Mực đang ở trạng thái drain hút 5/60 mỗi tick (cộng dồn nhiều con, xét theo id tăng dần)
-    if (this.shades.length > 0) {
-      const orderedDrain = this.shades.length > 1 ? this.shades.slice().sort(compareShadeId) : this.shades;
-      for (let i = 0; i < orderedDrain.length; i++) {
-        const z = orderedDrain[i];
-        if (z.state !== 'drain' || !z.targetLanternId) continue;
-        const L = this.lanterns.find((x) => x.id === z.targetLanternId);
-        if (!L || !L.lit || L.fuelU >= LOW_FUEL_U || d2(z.pos, L.pos) > X.shade_drain_r) continue;
-        L.fuelU -= DRAIN_PER_TICK_U;
-        z.drainTickCount++;
-        if (z.drainTickCount % X.shade_drain_event_ticks === 0) {
-          this._emit('fuel_drain', { lantern_id: L.id, shade_id: z.id, fuel: r1(Math.max(0, L.fuelU) / FUEL_SCALE) });
+    // Hao dầu tự nhiên 1/60 mỗi tick cho đèn đang sáng (tắt trong chế độ benchmark)
+    if (!this.benchMode) {
+      for (let i = 0; i < this.lanterns.length; i++) {
+        const L = this.lanterns[i];
+        if (L.lit) L.fuelU -= DECAY_PER_TICK_U;
+      }
+      // Bóng Mực đang ở trạng thái drain hút 5/60 mỗi tick (cộng dồn nhiều con, xét theo id tăng dần)
+      if (this.shades.length > 0) {
+        const orderedDrain = this._sortedShades();
+        for (let i = 0; i < orderedDrain.length; i++) {
+          const z = orderedDrain[i];
+          if (z.state !== 'drain' || !z.targetLanternId) continue;
+          const L = this.lanterns.find((x) => x.id === z.targetLanternId);
+          if (!L || !L.lit || L.fuelU >= LOW_FUEL_U || d2(z.pos, L.pos) > X.shade_drain_r) continue;
+          L.fuelU -= DRAIN_PER_TICK_U;
+          z.drainTickCount++;
+          if (z.drainTickCount % X.shade_drain_event_ticks === 0) {
+            this._emit('fuel_drain', { lantern_id: L.id, shade_id: z.id, fuel: r1(Math.max(0, L.fuelU) / FUEL_SCALE) });
+          }
         }
       }
-    }
-    // Ngay sau bước 2: đèn có fuel <= 0 chuyển sang tắt, deposited = 0, nhớ ever_lit = true, phát lantern_out
-    for (let i = 0; i < this.lanterns.length; i++) {
-      const L = this.lanterns[i];
-      if (L.lit && L.fuelU <= 0) {
-        L.fuelU = 0;
-        L.lit = false;
-        L.deposited = 0;
-        L.everLit = true;
-        this._emit('lantern_out', { lantern_id: L.id });
+      // Ngay sau bước 2: đèn có fuel <= 0 chuyển sang tắt, deposited = 0, nhớ ever_lit = true, phát lantern_out
+      for (let i = 0; i < this.lanterns.length; i++) {
+        const L = this.lanterns[i];
+        if (L.lit && L.fuelU <= 0) {
+          L.fuelU = 0;
+          L.lit = false;
+          L.deposited = 0;
+          L.everLit = true;
+          this._emit('lantern_out', { lantern_id: L.id });
+        }
       }
     }
 
@@ -563,7 +581,7 @@ export class Sim {
         }
       }
 
-      if (T.fall_enabled && p.pos[1] < X.fall_y) {
+      if (!this.benchMode && T.fall_enabled && p.pos[1] < X.fall_y) {
         const lost = p.carried;
         p.carried = 0;
         p.flames--;
@@ -577,8 +595,8 @@ export class Sim {
       }
     }
 
-    // Bước 4: Nhặt đom đóm (sức chứa động 10 + 2*successfulLights, trần 20) và Bùa Gió
-    if (p.respawnTicks === 0) {
+    // Bước 4: Nhặt đom đóm (sức chứa động 10 + 2*successfulLights, trần 20) và Bùa Gió (tắt trong benchmark)
+    if (!this.benchMode && p.respawnTicks === 0) {
       const cap = this.playerCapacity;
       for (let i = 0; i < this.motes.length; ) {
         if (p.carried >= cap) break;
@@ -758,8 +776,8 @@ export class Sim {
         }
       }
     }
-    if (p.respawnTicks === 0 && p.invuln === 0 && this.shades.length > 0) {
-      const ordered = this.shades.length > 1 ? this.shades.slice().sort(compareShadeId) : this.shades;
+    if (!this.benchMode && p.respawnTicks === 0 && p.invuln === 0 && this.shades.length > 0) {
+      const ordered = this._sortedShades();
       for (let i = 0; i < ordered.length; i++) {
         const z = ordered[i];
         if (z.state === 'stunned' || z.state === 'spawning' || z.state === 'recoil' || z.state === 'drain' || z.expelTicks > 0) continue;
@@ -795,7 +813,8 @@ export class Sim {
       this.nextDrifterTick += X.drifter_spawn_interval_ticks;
     }
 
-    // Bước 11: Xét thắng/thua (TICKET-03: không thắng sớm; hết lửa luôn thua no_flames trước; bình minh >= ceil(0.6*n) đèn -> dawn_survived)
+    // Bước 11: Xét thắng/thua (tắt trong benchmark; không thắng sớm; hết lửa luôn thua no_flames trước; bình minh >= ceil(0.6*n) đèn -> dawn_survived)
+    if (this.benchMode) return;
     if (p.flames <= 0) {
       this.state = 'lost';
       this._emit('game_over', { result: 'lost', reason: 'no_flames' });
