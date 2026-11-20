@@ -15,7 +15,7 @@ function resolvePath(url) {
     const f = normalize(join(root, 'node_modules', 'three', 'build', p.slice('/vendor/'.length)));
     return f.startsWith(join(root, 'node_modules', 'three', 'build')) ? f : null;
   }
-  if (p === '/main.js' || p === '/audio.js' || p === '/style.css') return join(root, 'public', p.slice(1));
+  if (p === '/main.js' || p === '/audio.js' || p === '/assets.js' || p === '/style.css') return join(root, 'public', p.slice(1));
   if (p.startsWith('/src/')) {
     const f = normalize(join(root, p));
     return f.startsWith(join(root, 'src')) ? f : null;

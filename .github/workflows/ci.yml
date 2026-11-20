@@ -39,6 +39,7 @@ jobs:
           node --check headless.js
           node --check server.js
           node --check public/audio.js
+          node --check public/assets.js
           node --check public/main.js
 
       - name: Verify greedy bot wins Night 1 (v1.1 tuning)

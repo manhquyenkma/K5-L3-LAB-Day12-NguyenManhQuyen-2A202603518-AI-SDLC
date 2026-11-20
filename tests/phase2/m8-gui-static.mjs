@@ -15,8 +15,8 @@ function test(name, fn) {
 
 console.log('Phase 2 M8 — 3D GUI, Standard Palette, HUD, Settings & Audio Checks');
 
-test('cú pháp hợp lệ: server.js, public/main.js, public/audio.js', () => {
-  for (const rel of ['server.js', 'public/main.js', 'public/audio.js']) {
+test('cú pháp hợp lệ: server.js, public/main.js, public/audio.js, public/assets.js', () => {
+  for (const rel of ['server.js', 'public/main.js', 'public/audio.js', 'public/assets.js']) {
     const r = spawnSync(process.execPath, ['--check', join(root, rel)], { encoding: 'utf8' });
     assert.equal(r.status, 0, `${rel}: ${r.stderr}`);
   }
