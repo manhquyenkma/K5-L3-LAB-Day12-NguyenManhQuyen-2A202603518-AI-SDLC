@@ -75,3 +75,24 @@
 ## Đánh giá nhanh Phase 2
 - **Đạt:** 58/58 test tự động xanh (24 hồi quy Phase 1 số chuẩn + 34 test Phase 2 phủ toàn bộ scenario bắt buộc); 3 đêm đầy đủ chạy headless 0.16–0.52 s (≪ 30 s) và khớp byte-by-byte; lõi `src/` 100% thuần; bản 3D đủ luồng 3 Đêm, Pause, Settings, 10 SFX, 7 HUD, bảng màu chuẩn.
 - **Cần kiểm chứng bổ sung trên trình duyệt thật:** Chơi thử 3 đêm tại `http://localhost:8080/?fps` trên máy để ghi nhận FPS thực tế và chụp ảnh màn hình mỗi đêm.
+
+---
+
+# Ghi chú Phase 3: Nhiên liệu đèn, Bóng Mực hút dầu, Luật thắng bình minh & Mù màu (TICKET-03, Contract v1.2)
+
+- Quyết định thiết kế kiến trúc: xem [ADR-001-phase3-lantern-fuel-and-win-rule.md](ADR-001-phase3-lantern-fuel-and-win-rule.md).
+- Danh sách thay đổi phá vỡ tương thích (Breaking Changes): xem [CHANGELOG.md](../CHANGELOG.md).
+
+## Nhật ký dùng AI Phase 3
+
+| Bước | Công cụ | Việc giao | Kiểm chứng |
+|---|---|---|---|
+| P3-1 | Antigravity (Gemini) | Lưu `docs/TICKET-03.md`, viết `docs/ADR-001-phase3-lantern-fuel-and-win-rule.md`, cập nhật `AGENTS.md` | Rà soát đối chiếu từng mục 1–7 TICKET-03, commit `4ea122b` |
+| P3-2 | Antigravity (Gemini) | Nâng lõi `src/tuning.js`, `src/nights/n1..n3.js`, `src/entities/shade.js` (6 trạng thái + `drain`), `src/sim.js` (nhiên liệu nguyên 1/60, châm dầu, tắt/thắp lại, thắng `dawn_survived`, sức chứa động, điểm mới), `headless.js` v1.2 | `npm run contract` (v1.2), commit `62bbd20` |
+| P3-3 | Antigravity (Gemini) | Viết 9 kịch bản test Phase 3 (`tests/phase3/phase3.mjs`), cập nhật các test cũ bị thay luật có ghi rõ lý do `[TICKET-03]` (không skip âm thầm), cập nhật log vàng v1.2 | `npm test` 70/70 xanh (24 hồi quy + 37 Phase 2 + 9 Phase 3), commit `a883bd7` |
+| P3-4 | Antigravity (Gemini) | Nâng cấp `public/` với thanh dầu 3D, nhấp nháy 1 Hz khi `fuel < 30`, đèn tắt xẹp 20% + giấy rách, HUD sức chứa động & ngưỡng bình minh, chế độ **"Bảng màu dễ phân biệt"** (`#00B3FF`, `#FFFFFF` + `⚠`, lưu `localStorage`) | `node --check` & `npm test` 70/70 xanh |
+| P3-5 | Antigravity (Gemini) | Cập nhật `CHANGELOG.md` (Breaking Changes), `README.md`, xuất báo cáo `evidence/phase3/`, gắn tag `phase-3` & đẩy lên GitHub | `npm test` 70/70 xanh, log vàng 3/3 khớp byte-by-byte |
+
+## Đánh giá nhanh Phase 3
+- **Đạt:** 70/70 test tự động xanh (không tắt âm thầm bất kỳ test cũ nào — mọi test bị luật mới thay thế đều đã cập nhật kèm lý do rõ ràng); nhiên liệu tính nguyên `1/60` loại bỏ sai số số thực ở mốc `fuel = 30` và `fuel = 0`; đủ ADR, CHANGELOG Breaking Changes, bằng chứng `evidence/phase3/`, chế độ mù màu & thanh dầu 3D.
+- **Ước tính token Phase 3:** ~35k token (nhờ tách lõi `shade.js` và `sim.js` gọn từ Phase 2 nên sửa tập trung không cần đọc lại toàn bộ repo).

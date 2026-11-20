@@ -14,12 +14,12 @@ console.log(`Môi trường: Node ${process.version} · ${platform()}/${arch()} 
 console.log('--- Đo headless CLI (3 đêm đầy đủ) ---');
 
 const cases = [
-  { night: 1, ticks: 18000, every: 10 },
-  { night: 2, ticks: 19800, every: 10 },
-  { night: 3, ticks: 21600, every: 10 },
-  { night: 1, ticks: 18000, every: 1 },
-  { night: 2, ticks: 19800, every: 1 },
-  { night: 3, ticks: 21600, every: 1 },
+  { night: 1, ticks: 14400, every: 10 },
+  { night: 2, ticks: 16200, every: 10 },
+  { night: 3, ticks: 18000, every: 10 },
+  { night: 1, ticks: 14400, every: 1 },
+  { night: 2, ticks: 16200, every: 1 },
+  { night: 3, ticks: 18000, every: 1 },
 ];
 
 for (const c of cases) {
