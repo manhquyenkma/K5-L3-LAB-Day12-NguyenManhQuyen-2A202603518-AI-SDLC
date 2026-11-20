@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Chế độ headless theo Test Contract v1.1.
+// Chế độ headless theo Test Contract v1.2.
 // Dùng: node headless.js --seed 1 --night 1|2|3 [--scenario f.json] [--inputs f.json]
 //                        --ticks N --out out.jsonl [--snapshot-every K]
 import { readFileSync, openSync, writeSync, closeSync } from 'node:fs';

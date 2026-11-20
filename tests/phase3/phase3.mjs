@@ -313,14 +313,126 @@ test('dynamic-capacity: sức chứa = min(20, 10 + 2*successful_lights), đèn 
   assert.equal(capMax.snaps[0].player.capacity, 20);
 });
 
-test('colorblind-and-fuel-ui: Bảng màu dễ phân biệt (#00B3FF, #FFFFFF + ⚠), đèn tắt xẹp 20% + giấy rách, thanh dầu & nhấp nháy 1 Hz', () => {
+test('win-thresholds-n2-n3-and-no-flames-priority: ngưỡng 4/6 Đêm 2, 5/7 Đêm 3; hết lửa ở tick bình minh vẫn thua no_flames', () => {
+  // Đêm 2: 4/6 thắng dawn_survived, 3/6 thua dawn
+  const n2Win = sim({
+    night: 2,
+    scenario: {
+      ...NO_RANDOM, time_left_s: 0.5, player: { pos: [0, 0, 0], flames: 1 },
+      lanterns: [
+        { id: 'L1', lit: true, fuel: 50 }, { id: 'L2', lit: true, fuel: 50 },
+        { id: 'L3', lit: true, fuel: 50 }, { id: 'L4', lit: true, fuel: 50 },
+      ],
+    },
+    ticks: 60, every: 30, name: 'n2-win',
+  });
+  assert.equal(n2Win.end.state, 'won');
+  assert.equal(n2Win.events.find((e) => e.name === 'game_over').data.reason, 'dawn_survived');
+
+  const n2Lose = sim({
+    night: 2,
+    scenario: {
+      ...NO_RANDOM, time_left_s: 0.5, player: { pos: [0, 0, 0], flames: 3 },
+      lanterns: [{ id: 'L1', lit: true, fuel: 50 }, { id: 'L2', lit: true, fuel: 50 }, { id: 'L3', lit: true, fuel: 50 }],
+    },
+    ticks: 60, every: 30, name: 'n2-lose',
+  });
+  assert.equal(n2Lose.end.state, 'lost');
+  assert.equal(n2Lose.events.find((e) => e.name === 'game_over').data.reason, 'dawn');
+
+  // Đêm 3: 5/7 thắng dawn_survived, 4/7 thua dawn
+  const n3Win = sim({
+    night: 3,
+    scenario: {
+      ...NO_RANDOM, time_left_s: 0.5, player: { pos: [0, 0, -15], flames: 1 },
+      lanterns: [
+        { id: 'L1', lit: true, fuel: 50 }, { id: 'L2', lit: true, fuel: 50 },
+        { id: 'L3', lit: true, fuel: 50 }, { id: 'L4', lit: true, fuel: 50 },
+        { id: 'L5', lit: true, fuel: 50 },
+      ],
+    },
+    ticks: 60, every: 30, name: 'n3-win',
+  });
+  assert.equal(n3Win.end.state, 'won');
+
+  const n3Lose = sim({
+    night: 3,
+    scenario: {
+      ...NO_RANDOM, time_left_s: 0.5, player: { pos: [0, 0, -15], flames: 3 },
+      lanterns: [
+        { id: 'L1', lit: true, fuel: 50 }, { id: 'L2', lit: true, fuel: 50 },
+        { id: 'L3', lit: true, fuel: 50 }, { id: 'L4', lit: true, fuel: 50 },
+      ],
+    },
+    ticks: 60, every: 30, name: 'n3-lose',
+  });
+  assert.equal(n3Lose.end.state, 'lost');
+  assert.equal(n3Lose.events.find((e) => e.name === 'game_over').data.reason, 'dawn');
+
+  // Tick bình minh (time_left_s = 1/60 = 1 tick) nhưng Mây mất Ngọn Lửa cuối cùng ngay tick đó -> luôn thua no_flames trước!
+  const lastTickDie = sim({
+    scenario: {
+      ...NO_RANDOM,
+      time_left_s: 1 / 60,
+      player: { pos: [0, 0, 0], flames: 1 },
+      lanterns: [
+        { id: 'L1', lit: true, fuel: 80 }, { id: 'L2', lit: true, fuel: 80 }, { id: 'L3', lit: true, fuel: 80 },
+      ],
+      shades: [{ id: 'S1', pos: [0, 1, 0.5], state: 'chase' }],
+    },
+    ticks: 5, every: 1, name: 'dawn-tick-no-flames',
+  });
+  assert.equal(lastTickDie.end.state, 'lost');
+  assert.deepEqual(lastTickDie.events.find((e) => e.name === 'game_over').data, { result: 'lost', reason: 'no_flames' });
+});
+
+test('shade-chase-keeps-target-and-drain-exits: bóng chase không đổi sang đèn yếu; drain thoát về wander khi tắt hoặc >2m', () => {
+  // Bóng đang chase (cách Mây 10 m) KHÔNG đổi mục tiêu sang đèn yếu L1 ở sát bên (1 m)
+  const keepChase = sim({
+    scenario: {
+      ...NO_RANDOM,
+      player: { pos: [0, 0, 14] },
+      lanterns: [{ id: 'L1', pos: [0, 0, 25], lit: true, fuel: 20 }],
+      shades: [{ id: 'S1', pos: [0, 1, 24], state: 'chase' }],
+    },
+    ticks: 5, every: 1, name: 'chase-keep',
+  });
+  assert.equal(keepChase.snaps[5].shades[0].state, 'chase');
+
+  // Bóng drain đứng cách đèn > 2 m -> thoát về wander
+  const tooFar = sim({
+    scenario: {
+      ...NO_RANDOM,
+      player: { pos: [0, 0, -30] },
+      lanterns: [{ id: 'L1', pos: [0, 0, 25], lit: true, fuel: 20 }],
+      shades: [{ id: 'S1', pos: [0, 1, 20], state: 'drain', target_lantern_id: 'L1' }],
+    },
+    ticks: 2, every: 1, name: 'drain-far',
+  });
+  assert.equal(tooFar.snaps[1].shades[0].state, 'wander');
+
+  // Bóng drain khi đèn tắt -> thoát về wander
+  const lampOut = sim({
+    scenario: {
+      ...NO_RANDOM,
+      player: { pos: [0, 0, -30] },
+      lanterns: [{ id: 'L1', pos: [0, 0, 25], lit: true, fuel: 0.1 }],
+      shades: [{ id: 'S1', pos: [0, 1, 24], state: 'drain', target_lantern_id: 'L1' }],
+    },
+    ticks: 3, every: 1, name: 'drain-lamp-out',
+  });
+  assert.ok(lampOut.events.some((e) => e.name === 'lantern_out' && e.data.lantern_id === 'L1'));
+  assert.equal(lampOut.snaps[2].shades[0].state, 'wander');
+});
+
+test('colorblind-and-fuel-ui: Bảng màu dễ phân biệt (#7A3CFF->#00B3FF viền & mắt, #FFFFFF + ⚠), đèn tắt xẹp 20% + giấy rách, thanh dầu & nhấp nháy 1 Hz', () => {
   const html = readFileSync(join(root, 'public/index.html'), 'utf8');
   const mainJs = readFileSync(join(root, 'public/main.js'), 'utf8');
   const assetsJs = readFileSync(join(root, 'public/assets.js'), 'utf8');
   assert.ok(html.includes('Bảng màu dễ phân biệt'), 'thiếu cài đặt Bảng màu dễ phân biệt');
   assert.ok(html.includes('id="set-cb"'), 'thiếu checkbox #set-cb');
   assert.ok(html.includes('body.colorblind') && html.includes('#FFFFFF'), 'thiếu màu cảnh báo #FFFFFF cho mù màu');
-  assert.ok(mainJs.includes('0x00b3ff'), 'thiếu màu Bóng Mực #00B3FF cho mù màu');
+  assert.ok(mainJs.includes('0x00b3ff') && mainJs.includes('PALETTE.shadeRim') && assetsJs.includes('color: PALETTE.shadeRim'), 'thiếu màu viền & mắt Bóng Mực #7A3CFF -> #00B3FF');
   assert.ok(mainJs.includes('⚠'), 'thiếu biểu tượng ⚠ cho cảnh báo mù màu');
   assert.ok(assetsJs.includes('lanternSilkTorn') && mainJs.includes('0.8'), 'thiếu đèn tắt xẹp 20% và giấy rách');
   assert.ok(assetsJs.includes('fuelBarGroup') && mainJs.includes('blink1Hz'), 'thiếu thanh dầu đèn và nhấp nháy 1 Hz');

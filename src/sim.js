@@ -412,7 +412,7 @@ export class Sim {
         const z = orderedDrain[i];
         if (z.state !== 'drain' || !z.targetLanternId) continue;
         const L = this.lanterns.find((x) => x.id === z.targetLanternId);
-        if (!L || !L.lit || d2(z.pos, L.pos) > X.shade_drain_r) continue;
+        if (!L || !L.lit || L.fuelU >= LOW_FUEL_U || d2(z.pos, L.pos) > X.shade_drain_r) continue;
         L.fuelU -= DRAIN_PER_TICK_U;
         z.drainTickCount++;
         if (z.drainTickCount % X.shade_drain_event_ticks === 0) {

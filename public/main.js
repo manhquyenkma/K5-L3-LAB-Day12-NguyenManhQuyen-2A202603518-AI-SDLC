@@ -839,9 +839,9 @@ function syncViews(timeSec) {
   moteCoreInst.instanceMatrix.needsUpdate = true;
   moteHaloInst.instanceMatrix.needsUpdate = true;
 
-  // Bóng Mực (hỗ trợ trạng thái drain + chế độ mù màu #00B3FF cho viền & mắt)
+  // Bóng Mực (hỗ trợ trạng thái drain + chế độ mù màu: viền & mắt đổi từ #7A3CFF sang #00B3FF)
   const rimHex = settings.colorblind ? PALETTE.shadeRimColorblind : PALETTE.shadeRim;
-  const eyeHex = settings.colorblind ? PALETTE.shadeRimColorblind : PALETTE.uiText;
+  const eyeHex = settings.colorblind ? PALETTE.shadeRimColorblind : PALETTE.shadeRim;
   const liveS = new Set();
   for (const z of sim.shades) {
     liveS.add(z.id);

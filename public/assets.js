@@ -524,8 +524,8 @@ export function createAssetPack(PALETTE) {
       tendrils.push({ mesh: t, phase: i * 1.1 });
     }
 
-    // Đôi mắt sáng sắc sảo nhìn về +Z (lookAt hướng về Mây)
-    const eyeMat = new THREE.MeshBasicMaterial({ color: PALETTE.uiText });
+    // Đôi mắt sáng sắc sảo nhìn về +Z (mặc định #7A3CFF, mù màu đổi sang #00B3FF theo TICKET-03 §6)
+    const eyeMat = new THREE.MeshBasicMaterial({ color: PALETTE.shadeRim });
     const eyeGeo = new THREE.SphereGeometry(0.13, 10, 8);
     const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
     eyeL.scale.set(1.25, 0.72, 0.6);

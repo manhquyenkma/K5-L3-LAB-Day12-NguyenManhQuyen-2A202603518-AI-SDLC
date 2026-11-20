@@ -1,3 +1,7 @@
+
+> dao-den-long@1.0.0 test
+> node tests/all.mjs
+
 Test Contract v1.2 — Hồi quy Phase 1 theo số chuẩn TICKET-03
   ✓ game.contract.json khớp tuning v1.2 trong mã
   ✓ snapshot: bắt đầu tick 0, đúng nhịp, dòng cuối là end
@@ -79,9 +83,9 @@ Phase 2 M6 — Schema v1.1, Pause/Resume & 12-Step Tick Order
 
 M6: 5 đạt, 0 lỗi
 Phase 2 M7 — Full-Night Performance, 3-Night Determinism & Pure Core Audit
-    [Đêm 1: 14400 tick -> 118 ms, 230509 bytes, byte-identical PASS]
-    [Đêm 2: 16200 tick -> 357 ms, 4658671 bytes, byte-identical PASS]
-    [Đêm 3: 18000 tick -> 407 ms, 6373162 bytes, byte-identical PASS]
+    [Đêm 1: 14400 tick -> 117 ms, 230509 bytes, byte-identical PASS]
+    [Đêm 2: 16200 tick -> 554 ms, 4658671 bytes, byte-identical PASS]
+    [Đêm 3: 18000 tick -> 641 ms, 6373162 bytes, byte-identical PASS]
   ✓ night-full: cả 3 đêm đầy đủ (14400/16200/18000 tick theo TICKET-03) chạy headless <= 30 s và tất định byte-by-byte
   ✓ pure-core-audit: src/ không dùng Math.random, Date, performance, DOM, I/O hay import từ public/
 
@@ -101,6 +105,8 @@ Phase 3 (TICKET-03, Contract v1.2) — Fuel, Drain, Dawn Win & Dynamic Capacity
   ✓ shade-drain-exits-and-pulse: drain->chase khi Mây <=6m; Pulse trúng drain +15 (thường +5), hết choáng về wander
   ✓ win-dawn-survived: thắp đủ 5/5 KHÔNG thắng sớm; bình minh >=3/5 thắng dawn_survived (+50+floor(fuel) + 50*lửa, bỏ thưởng thời gian)
   ✓ dynamic-capacity: sức chứa = min(20, 10 + 2*successful_lights), đèn lit sẵn scenario không tính
-  ✓ colorblind-and-fuel-ui: Bảng màu dễ phân biệt (#00B3FF, #FFFFFF + ⚠), đèn tắt xẹp 20% + giấy rách, thanh dầu & nhấp nháy 1 Hz
+  ✓ win-thresholds-n2-n3-and-no-flames-priority: ngưỡng 4/6 Đêm 2, 5/7 Đêm 3; hết lửa ở tick bình minh vẫn thua no_flames
+  ✓ shade-chase-keeps-target-and-drain-exits: bóng chase không đổi sang đèn yếu; drain thoát về wander khi tắt hoặc >2m
+  ✓ colorblind-and-fuel-ui: Bảng màu dễ phân biệt (#7A3CFF->#00B3FF viền & mắt, #FFFFFF + ⚠), đèn tắt xẹp 20% + giấy rách, thanh dầu & nhấp nháy 1 Hz
 
-Phase 3: 9 đạt, 0 lỗi
+Phase 3: 11 đạt, 0 lỗi
