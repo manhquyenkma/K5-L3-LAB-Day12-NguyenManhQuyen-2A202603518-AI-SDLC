@@ -73,8 +73,8 @@ test('pause-resume: tick tăng nhưng sim_tick, thời gian, hồi chiêu, bùa 
   assert.equal(r.snaps[25].sim_tick, s5.sim_tick + 10);
 });
 
-test('win-at-timeout: thắp đèn cuối đúng tick hết giờ vẫn thắng (all_lit)', () => {
-  const lit = ['L2', 'L3', 'L4', 'L5'].map((id) => ({ id, lit: true }));
+test('[TICKET-03 thay all_lit] win-at-timeout: đủ ngưỡng đèn sáng đúng tick bình minh -> thắng dawn_survived', () => {
+  const lit = ['L2', 'L3', 'L4', 'L5'].map((id) => ({ id, lit: true, fuel: 80 }));
   const r = sim({
     night: 1,
     scenario: {
@@ -87,7 +87,7 @@ test('win-at-timeout: thắp đèn cuối đúng tick hết giờ vẫn thắng 
     ticks: 10, every: 1, name: 'win-timeout',
   });
   assert.equal(r.end.state, 'won');
-  assert.deepEqual(r.events.find((e) => e.name === 'game_over').data, { result: 'won', reason: 'all_lit' });
+  assert.deepEqual(r.events.find((e) => e.name === 'game_over').data, { result: 'won', reason: 'dawn_survived' });
 });
 
 test('flames-vs-win: cùng tick vừa thắp đủ đèn vừa hết Ngọn Lửa -> luôn thua no_flames', () => {

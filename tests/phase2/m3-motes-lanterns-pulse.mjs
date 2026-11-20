@@ -74,8 +74,8 @@ test('deposit-multi: nạp nhiều lần nhớ tiến độ, hòa khoảng cách
   assert.deepEqual(deps[1].data, { lantern_id: 'L1', amount: 6, deposited: 10 });
   const lit = r.events.filter((e) => e.name === 'lantern_lit');
   assert.equal(lit.length, 1);
-  assert.deepEqual(lit[0].data, { lantern_id: 'L1' });
-  assert.equal(r.end.score, 10 * 10 + 100);
+  assert.deepEqual(lit[0].data, { lantern_id: 'L1', relight: false }); // [TICKET-03] thêm relight
+  assert.equal(r.end.score, 10 * 5 + 100); // [TICKET-03] điểm nạp đổi +10 -> +5 mỗi đom đóm
 });
 
 test('safe-zone-block: đèn chưa sáng KHÔNG chặn Bóng Mực; đèn đã sáng chặn ở mép 6 m', () => {

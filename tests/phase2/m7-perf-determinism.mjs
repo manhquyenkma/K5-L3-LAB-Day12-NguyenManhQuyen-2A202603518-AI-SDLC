@@ -32,14 +32,14 @@ function test(name, fn) {
 
 console.log('Phase 2 M7 — Full-Night Performance, 3-Night Determinism & Pure Core Audit');
 
-test('night-full: cả 3 đêm đầy đủ (18000/19800/21600 tick) chạy headless <= 30 s và tất định byte-by-byte', () => {
+test('night-full: cả 3 đêm đầy đủ (14400/16200/18000 tick theo TICKET-03) chạy headless <= 30 s và tất định byte-by-byte', () => {
   const frames = [
     { tick: 0, move: [0.6, 0.8] },
     { tick: 60, dash: true },
     { tick: 61, dash: false, move: [-0.5, 0.7] },
     { tick: 180, move: [0, 0] },
   ];
-  for (const [night, ticks] of [[1, 18000], [2, 19800], [3, 21600]]) {
+  for (const [night, ticks] of [[1, 14400], [2, 16200], [3, 18000]]) {
     const a = runHeadless({ night, ticks, seed: 77, frames, every: 10, name: `n${night}-a` });
     const b = runHeadless({ night, ticks, seed: 77, frames, every: 10, name: `n${night}-b` });
     assert.ok(a.elapsed < 30000, `Đêm ${night} quá chậm: ${a.elapsed} ms`);

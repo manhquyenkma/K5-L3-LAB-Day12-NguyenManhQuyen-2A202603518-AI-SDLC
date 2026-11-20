@@ -1,4 +1,5 @@
-// Bộ test hồi quy Phase 1 với số liệu chuẩn v1.1 (TICKET-02, xem docs/ASSUMPTIONS.md).
+// Bộ test hồi quy Phase 1 với số liệu chuẩn v1.2 (TICKET-03).
+// Mọi assert bị luật Phase 3 thay thế đều có chú thích [TICKET-03] rõ lý do (không skip âm thầm).
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -36,11 +37,11 @@ function test(name, fn) {
   catch (e) { failed++; console.log('  ✗ ' + name + '\n    ' + (e.message || e).split('\n').join('\n    ')); }
 }
 
-console.log('Test Contract v1.1 — Hồi quy Phase 1 theo số chuẩn TICKET-02');
+console.log('Test Contract v1.2 — Hồi quy Phase 1 theo số chuẩn TICKET-03');
 
-test('game.contract.json khớp tuning v1.1 trong mã', () => {
+test('game.contract.json khớp tuning v1.2 trong mã', () => {
   const c = JSON.parse(readFileSync(join(root, 'game.contract.json'), 'utf8'));
-  assert.equal(c.contract_version, '1.1'); // cập nhật từ 1.0 theo TICKET-02 Phần 4
+  assert.equal(c.contract_version, '1.2'); // [TICKET-03] nâng contract_version 1.1 -> 1.2
   assert.deepEqual(c.tuning, T);
   assert.equal(c.tuning.lantern_count_night1, 5);
   for (const k of ['build_cmd', 'run_cmd', 'headless_cmd', 'team']) assert.equal(typeof c[k], 'string');
@@ -51,7 +52,8 @@ test('snapshot: bắt đầu tick 0, đúng nhịp, dòng cuối là end', () =>
   assert.deepEqual(r.snaps.map((s) => s.tick), [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
   assert.deepEqual(r.end, { type: 'end', ticks: 100, state: 'playing', score: 0 });
   assert.equal(r.snaps[0].sim_tick, 0);
-  assert.equal(r.snaps[1].time_left_s, Math.round((300 - 10 / 60) * 1000) / 1000);
+  // [TICKET-03] thời lượng Đêm 1 đổi từ 300 s -> 240 s
+  assert.equal(r.snaps[1].time_left_s, Math.round((T.night1_duration_s - 10 / 60) * 1000) / 1000);
 });
 
 test('dựng scenario không phát sự kiện, không cộng điểm (đèn lit sẵn)', () => {
@@ -64,7 +66,6 @@ test('dựng scenario không phát sự kiện, không cộng điểm (đèn lit
 
 test('di chuyển: đạt tốc độ = player_speed, chuẩn hóa vector chéo', () => {
   const r = sim({ scenario: NO_RANDOM, frames: [{ tick: 0, move: [0, 1] }], ticks: 60 });
-  // Cho phép biên gia tốc ≤ 0.1s (mất tối đa ~0.3m ở đầu đoạn chạy khi có tăng tốc ở M2)
   assert.ok(r.snaps.at(-1).player.pos[2] > T.player_speed - 0.5 && r.snaps.at(-1).player.pos[2] <= T.player_speed + 0.05);
   const d = sim({ scenario: NO_RANDOM, frames: [{ tick: 0, move: [1, 1] }], ticks: 60, name: 'diag' });
   const [x, , z] = d.snaps.at(-1).player.pos;
@@ -77,22 +78,22 @@ test('cam_yaw_deg=90 xoay hướng di chuyển (tiến -> +X)', () => {
   assert.ok(x > T.player_speed - 0.5 && Math.abs(z) < 0.05, `pos=${x},${z}`);
 });
 
-test('nhặt đom đóm: sự kiện mote_picked (TICKET-02: điểm tính lúc nạp, không cộng lúc nhặt)', () => {
+test('nhặt đom đóm: sự kiện mote_picked (điểm tính lúc nạp, không cộng lúc nhặt)', () => {
   const r = sim({ scenario: { ...NO_RANDOM, motes: [[0, 0, 5]] }, frames: [{ tick: 0, move: [0, 1] }], ticks: 120 });
   const e = r.events.filter((x) => x.name === 'mote_picked');
   assert.equal(e.length, 1);
   assert.deepEqual(e[0].data, { carried: 1 });
-  assert.equal(r.snaps.at(-1).score, 0); // TICKET-02 đổi +per_mote sang lúc nạp
+  assert.equal(r.snaps.at(-1).score, 0);
   assert.equal(r.snaps.at(-1).motes_active, 0);
 });
 
-test('sức chứa: không nhặt quá carry_capacity (10)', () => {
+test('sức chứa ban đầu: không nhặt quá carry_capacity (10) khi chưa thắp đèn', () => {
   const r = sim({ scenario: { ...NO_RANDOM, player: { carried: T.carry_capacity }, motes: [[0, 0, 0.5]] }, ticks: 30 });
   assert.equal(r.events.filter((e) => e.name === 'mote_picked').length, 0);
   assert.equal(r.snaps.at(-1).motes_active, 1);
 });
 
-test('nạp đèn: deposit + lantern_lit + điểm (+10/đom đóm nạp + 100 thắp); interact chỉ ăn khi false→true', () => {
+test('nạp đèn: deposit + lantern_lit(relight:false) + điểm (+5/đom đóm nạp + 100 thắp); interact chỉ ăn khi false→true', () => {
   const r = sim({
     scenario: { ...NO_RANDOM, player: { pos: [0, 0, 24], carried: T.lantern_cost }, lanterns: [{ id: 'L1', pos: [0, 0, 25] }] },
     frames: [{ tick: 0, interact: true }], ticks: 30,
@@ -100,6 +101,8 @@ test('nạp đèn: deposit + lantern_lit + điểm (+10/đom đóm nạp + 100 t
   const names = r.events.filter((e) => e.name !== 'night_start').map((e) => e.name);
   assert.deepEqual(names, ['deposit', 'lantern_lit']);
   assert.deepEqual(r.events.find((e) => e.name === 'deposit').data, { lantern_id: 'L1', amount: T.lantern_cost, deposited: T.lantern_cost });
+  assert.deepEqual(r.events.find((e) => e.name === 'lantern_lit').data, { lantern_id: 'L1', relight: false }); // [TICKET-03] thêm relight
+  // [TICKET-03] điểm nạp đổi từ +10 -> +5 mỗi đom đóm
   assert.equal(r.snaps.at(-1).score, T.lantern_cost * T.score.per_mote + T.score.per_lantern);
   assert.equal(r.snaps.at(-1).player.carried, 0);
 });
@@ -112,18 +115,18 @@ test('nạp đèn: ngoài interact_radius (2 m) thì không nạp; nạp từng 
   assert.equal(part.end.score, 2 * T.score.per_mote);
 });
 
-test('thắng: thắp hết đèn -> game_over won/all_lit, điểm thưởng, dừng sớm', () => {
-  const lit = ['L2', 'L3', 'L4', 'L5'].map((id) => ({ id, lit: true }));
+test('[TICKET-03 thay all_lit] thắng bình minh: sống sót hết đêm với >= 3/5 đèn sáng -> dawn_survived + thưởng đèn & lửa', () => {
+  const lit = ['L2', 'L3', 'L4', 'L5'].map((id) => ({ id, lit: true, fuel: 80 }));
   const r = sim({
-    scenario: { ...NO_RANDOM, time_left_s: 100, player: { pos: [0, 0, 24], carried: T.lantern_cost, flames: 3 }, lanterns: [{ id: 'L1', pos: [0, 0, 25] }, ...lit] },
+    scenario: { ...NO_RANDOM, time_left_s: 1 / 60, player: { pos: [0, 0, 24], carried: T.lantern_cost, flames: 3 }, lanterns: [{ id: 'L1', pos: [0, 0, 25] }, ...lit] },
     frames: [{ tick: 0, interact: true }], ticks: 600,
   });
   const go = r.events.find((e) => e.name === 'game_over');
-  assert.deepEqual(go.data, { result: 'won', reason: 'all_lit' });
+  assert.deepEqual(go.data, { result: 'won', reason: 'dawn_survived' });
   assert.equal(r.end.state, 'won');
   assert.equal(r.end.ticks, 1);
-  const secs = Math.floor(100 - 1 / 60);
-  assert.equal(r.end.score, T.lantern_cost * T.score.per_mote + T.score.per_lantern + secs * T.score.per_second_left + 3 * T.score.per_flame_left);
+  // L1 vừa thắp (fuel=100 -> +50+100=150), L2..L5 sau 1 tick (fuel=79.983 -> floor=79 -> 4*(50+79)=516) + 3*50 lửa + (10*5 + 100) thắp L1
+  assert.equal(r.end.score, (10 * 5 + 100) + 150 + 4 * (50 + 79) + 3 * 50);
 });
 
 test('tỏa sáng: choáng, đẩy lùi, trừ pulse_cost (3), +per_stun (5), cooldown', () => {
@@ -136,7 +139,6 @@ test('tỏa sáng: choáng, đẩy lùi, trừ pulse_cost (3), +per_stun (5), co
   assert.deepEqual(pulses[0].data, { stunned_ids: ['S1'] });
   const s1 = r.snaps[1].shades.find((s) => s.id === 'S1');
   assert.equal(s1.state, 'stunned');
-  // Sau 15 tick đẩy lùi tổng pulse_push_m = 4 m
   const s1End = r.snaps[16].shades.find((s) => s.id === 'S1');
   assert.ok(s1End.pos[0] >= 4 + T.pulse_push_m - 0.15, `s1End.x=${s1End.pos[0]}`);
   assert.equal(r.snaps[1].player.carried, 6 - T.pulse_cost);
@@ -169,16 +171,15 @@ test('hết lửa -> thua no_flames', () => {
   assert.deepEqual(r.end, { type: 'end', ticks: 1, state: 'lost', score: 0 });
 });
 
-test('hết đêm -> thua dawn đúng tick 60', () => {
+test('hết đêm (0 đèn sáng < ngưỡng 3/5) -> thua dawn đúng tick 60', () => {
   const r = sim({ scenario: { ...NO_RANDOM, time_left_s: 1 }, ticks: 1000 });
   assert.deepEqual(r.events.at(-1).data, { result: 'lost', reason: 'dawn' });
   assert.equal(r.end.ticks, 60);
   assert.equal(r.end.state, 'lost');
 });
 
-test('safe_radius (6 m, đèn đã sáng): Bóng Mực không vào vùng quanh đèn, người đứng sát đèn không bị chạm', () => {
-  // TICKET-02 đổi safe_radius chỉ áp dụng cho đèn đã sáng (L1 lit: true)
-  const r = sim({ scenario: { ...NO_RANDOM, player: { pos: [0, 0, 26] }, lanterns: [{ id: 'L1', pos: [0, 0, 25], lit: true }], shades: [{ pos: [0, 1, 16] }, { pos: [10, 1, 25] }] }, ticks: 300, every: 5 });
+test('safe_radius (6 m, đèn đã sáng & fuel >= 30): Bóng Mực không vào vùng quanh đèn', () => {
+  const r = sim({ scenario: { ...NO_RANDOM, player: { pos: [0, 0, 26] }, lanterns: [{ id: 'L1', pos: [0, 0, 25], lit: true, fuel: 100 }], shades: [{ pos: [0, 1, 16] }, { pos: [10, 1, 25] }] }, ticks: 300, every: 5 });
   for (const s of r.snaps) for (const z of s.shades) assert.ok(Math.hypot(z.pos[0], z.pos[2] - 25) >= T.safe_radius - 0.01, `tick ${s.tick}`);
   assert.equal(r.events.filter((e) => e.name === 'player_hit').length, 0);
 });
@@ -229,9 +230,9 @@ test('lỗi: thiếu tham số -> mã khác 0 (1)', () => {
   assert.ok(r.stderr.length > 0);
 });
 
-test('hiệu năng: 18000 tick (5 phút) < 2 giây', () => {
+test('hiệu năng: Đêm 1 đầy đủ 14400 tick (4 phút) < 2 giây', () => {
   const t0 = Date.now();
-  sim({ ticks: 18000, name: 'perf' });
+  sim({ ticks: 14400, name: 'perf' });
   assert.ok(Date.now() - t0 < 2000, `mất ${Date.now() - t0} ms`);
 });
 

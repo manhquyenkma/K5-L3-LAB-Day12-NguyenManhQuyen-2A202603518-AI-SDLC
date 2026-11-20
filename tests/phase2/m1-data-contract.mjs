@@ -16,9 +16,9 @@ function test(name, fn) {
 
 console.log('Phase 2 M1 — Tuning v1.1, Contract & 3 Nights Data');
 
-test('game.contract.json là v1.1, đúng team và khớp toàn bộ số chuẩn TICKET-02', () => {
+test('game.contract.json là v1.2, đúng team và khớp toàn bộ số chuẩn TICKET-03', () => {
   const c = JSON.parse(readFileSync(join(root, 'game.contract.json'), 'utf8'));
-  assert.equal(c.contract_version, '1.1');
+  assert.equal(c.contract_version, '1.2'); // [TICKET-03] nâng từ 1.1 -> 1.2
   assert.equal(c.team, '2A202603518-nguyen-manh-quyen');
   assert.deepEqual(c.tuning, T);
   assert.equal(T.player_speed, 6);
@@ -26,7 +26,9 @@ test('game.contract.json là v1.1, đúng team và khớp toàn bộ số chuẩ
   assert.equal(T.dash_duration_s, 0.2);
   assert.equal(T.dash_cooldown_s, 1.5);
   assert.equal(T.carry_capacity, 10);
+  assert.equal(T.capacity_max, 20);
   assert.equal(T.lantern_cost, 10);
+  assert.equal(T.relight_cost, 5);
   assert.equal(T.pickup_radius, 1);
   assert.equal(T.interact_radius, 2);
   assert.equal(T.safe_radius, 6);
@@ -37,15 +39,22 @@ test('game.contract.json là v1.1, đúng team và khớp toàn bộ số chuẩ
   assert.equal(T.pulse_push_m, 4);
   assert.equal(T.invuln_s, 1.5);
   assert.equal(T.fall_enabled, true);
-  assert.equal(T.night1_duration_s, 300);
-  assert.equal(T.night2_duration_s, 330);
-  assert.equal(T.night3_duration_s, 360);
-  assert.deepEqual(T.score, { per_mote: 10, per_lantern: 100, per_stun: 5, per_second_left: 2, per_flame_left: 50 });
+  // [TICKET-03] thời lượng đổi 300/330/360 -> 240/270/300 s
+  assert.equal(T.night1_duration_s, 240);
+  assert.equal(T.night2_duration_s, 270);
+  assert.equal(T.night3_duration_s, 300);
+  assert.equal(T.score.per_mote, 5);
+  assert.equal(T.score.per_lantern, 100);
+  assert.equal(T.score.per_relight, 40);
+  assert.equal(T.score.per_stun, 5);
+  assert.equal(T.score.per_drain_stun, 15);
+  assert.equal(T.score.per_flame_left, 50);
+  assert.equal(T.score.per_lit_dawn, 50);
 });
 
 test('Đêm 1 (Đảo Bến): 5 đèn đúng tọa độ, 24 điểm sinh đom đóm, 12 điểm sinh Bóng Mực', () => {
   const n1 = getNight(1);
-  assert.equal(n1.duration_s, 300);
+  assert.equal(n1.duration_s, 240); // [TICKET-03] 300 -> 240 s
   assert.equal(n1.lanterns.length, 5);
   assert.deepEqual(n1.lanterns.map((l) => [l.id, l.pos]), [
     ['L1', [0, 0, 25]],
@@ -68,7 +77,7 @@ test('Đêm 1 (Đảo Bến): 5 đèn đúng tọa độ, 24 điểm sinh đom �
 
 test('Đêm 2 (Đảo Cau): 2 đảo + cầu, 6 đèn, 24 điểm đom đóm, 16 điểm Bóng Mực, 2 bục nhảy, 1 Bùa Gió', () => {
   const n2 = getNight(2);
-  assert.equal(n2.duration_s, 330);
+  assert.equal(n2.duration_s, 270); // [TICKET-03] 330 -> 270 s
   assert.equal(n2.islands.length, 2);
   assert.deepEqual(n2.bridge, { xMin: 26, xMax: 44, zMin: -2, zMax: 2, y: 0 });
   assert.equal(n2.lanterns.length, 6);
@@ -93,7 +102,7 @@ test('Đêm 2 (Đảo Cau): 2 đảo + cầu, 6 đèn, 24 điểm đom đóm, 16
 
 test('Đêm 3 (Đảo Chuông): 3 tầng + 2 dốc + tháp + bục nhảy, 7 đèn, 30 điểm đom đóm, 16 điểm Bóng Mực, 2 Bùa Gió', () => {
   const n3 = getNight(3);
-  assert.equal(n3.duration_s, 360);
+  assert.equal(n3.duration_s, 300); // [TICKET-03] 360 -> 300 s
   assert.equal(n3.lanterns.length, 7);
   assert.deepEqual(n3.lanterns.map((l) => [l.id, l.pos]), [
     ['L1', [0, 6, 6]],

@@ -1,4 +1,4 @@
-// Trình chạy toàn bộ bộ test (hồi quy Phase 1 + các mốc Phase 2).
+// Trình chạy toàn bộ bộ test (hồi quy Phase 1 + Phase 2 + Phase 3).
 import { spawnSync } from 'node:child_process';
 import { readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -6,10 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const files = [join(root, 'tests', 'run.mjs')];
-const p2Dir = join(root, 'tests', 'phase2');
-if (existsSync(p2Dir)) {
-  for (const f of readdirSync(p2Dir).sort()) {
-    if (f.endsWith('.mjs')) files.push(join(p2Dir, f));
+for (const sub of ['phase2', 'phase3']) {
+  const dir = join(root, 'tests', sub);
+  if (existsSync(dir)) {
+    for (const f of readdirSync(dir).sort()) {
+      if (f.endsWith('.mjs')) files.push(join(dir, f));
+    }
   }
 }
 
