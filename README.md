@@ -62,9 +62,13 @@ Mã thoát: `0` thành công · `1` sai tham số/lỗi chạy · `2` file `--in
 Mọi sáng tạo chỉ nằm ở tầng hiển thị/âm thanh/chữ trong `public/`, **không** chạm tới lõi `src/`, được bảo vệ bởi bài test quét import `pure-core-audit` và kiểm chứng khớp log vàng byte-by-byte:
 
 - **Giữ nguyên sáng tạo Phase 1:** Mây đội nón lá treo đèn lồng nhỏ (nhấp nháy khi bất tử), đảo sáng dần theo tiến độ đèn, vòng cam hiển thị vùng an toàn 6 m quanh đèn đã sáng, vòng tỏa sáng lan ra khi bấm `F`, Bóng Mực dẹt lại khi bị choáng, âm thanh Web Audio thuần.
-- **Sáng tạo mở rộng Phase 2 (M11):** *(Sẽ cập nhật chi tiết sau khi hoàn tất M11 và kiểm chứng log vàng xanh.)*
+- **Sáng tạo mở rộng Phase 2 (M11 — thuần hiển thị/âm thanh/chữ):**
+  - **C1 (Đảo hát):** Mỗi Đèn Lồng Lớn thắp sáng bổ sung thêm một nốt vào hòa âm thang ngũ cung (Web Audio API); thắng Đêm 3 có tiếng chuông tháp ngân vang; tắt hoàn toàn khi âm lượng = 0.
+  - **C2 (Ông Đăng gợi ý):** Hiện 1 dòng gợi ý ngắn (≤ 2 s, tối đa 1 lần mỗi tình huống trong mỗi Đêm, không che HUD) khi thắp đèn đầu tiên, bị đánh lần đầu, bị Gió Lạc cướp, hoặc nhặt Bùa Gió.
+  - **C3 (Hiệu ứng nhân vật):** Đèn lồng nhỏ trên nón lá lắc theo tốc độ chạy, vệt sáng khi lướt (`Shift`), gợn sương khi đáp xuống (không thêm đèn điểm, tự tắt nếu FPS < 35).
+  - **C5 (Không khí từng đảo):** Cầu tre Đêm 2 đung đưa nhẹ ở hình ảnh (va chạm `Sim` giữ nguyên), chuông tháp Đêm 3 rung khi thắp đèn, màn Bình Minh chuyển trời từ `#0E1430` sang sắc ấm `#FFB347`.
 
-Bằng chứng phần cũ vẫn đúng: `npm test` (58/58 đạt, gồm 24 test hồi quy Phase 1 + 34 test Phase 2) và `evidence/phase2/test-report.txt`.
+Bằng chứng phần cũ & Contract v1.1 không bị ảnh hưởng: `npm test` (**61/61 đạt**, gồm 24 hồi quy Phase 1 + 34 test Phase 2 + 3 cổng chặn log vàng `evidence/golden/` khớp 100% từng byte) và `docs/PERF.md`.
 
 ## Cấu trúc
 

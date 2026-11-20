@@ -63,7 +63,9 @@
 | M6 | Antigravity (Gemini) | Schema v1.1 đầy đủ, `night_start`, `pause`/`resume`, ưu tiên thắng/thua & thứ tự 12 bước tick | `npm test` 53/53 xanh, commit `180e705` |
 | M7 | Antigravity (Gemini) | Ghi log theo lô `headless.js`, test hiệu năng 3 đêm đầy đủ (158–517 ms ≪ 30 s), tất định byte-by-byte, `pure-core-audit` | `npm test` 55/55 xanh, commit `01ce9f3` |
 | M8 | Antigravity (Gemini) | GUI 3D 3 đêm (`public/index.html`, `public/main.js`, `public/audio.js`): Menu → Intro Ông Đăng → 3 Đêm → Bình Minh, Pause, Settings, 10 SFX, 7 thành phần HUD, bảng màu chuẩn & ánh sáng môi trường | `npm test` 58/58 xanh, commit `0fdc560` |
-| M9 | Antigravity (Gemini) | Cập nhật `scripts/bot.mjs` (v1.1), CI, `SPEC-PHASE2.md`, `README.md`, xuất log 3 đêm & báo cáo test `evidence/phase2/` | `npm test` 58/58 xanh + `node scripts/bot.mjs 1` thắng Đêm 1 |
+| M9 | Antigravity (Gemini) | Cập nhật `scripts/bot.mjs` (v1.1), CI, `SPEC-PHASE2.md`, `README.md`, xuất log 3 đêm & báo cáo test `evidence/phase2/` | `npm test` 58/58 xanh + `node scripts/bot.mjs 3` thắng Đêm 1, commit `f4925fc` |
+| M10 | Antigravity (Gemini) | Tạo `scripts/bench.mjs`, log vàng `evidence/golden/` + `tests/phase2/m10-golden.mjs`, ghi số đo thật vào `docs/PERF.md` | 3 đêm chạy 0.24–0.53 s, peak RSS 50.1 MB, log vàng 3/3 khớp byte-by-byte, commit `66affee` |
+| M11 | Antigravity (Gemini) | Sáng tạo thuần `public/` (C1 Đảo hát + chuông tháp, C2 Ông Đăng gợi ý, C3 vệt lướt & gợn đáp, C5 cầu đung đưa + chuông rung + Bình Minh) | `npm test` 61/61 xanh (kể cả log vàng + `pure-core-audit`), không chạm `src/` |
 
 ## Lỗi phát hiện & cách sửa trong Phase 2
 - **Bước 4 chạy trước Bước 5 trong test `deposit-multi` (M3):** Đom đóm đặt trong bán kính 1 m bị nhặt ngay ở tick 0 trước khi nạp lần 1 → sửa kịch bản test đặt đom đóm ở `z = 2.2` để tách rõ 2 lần nạp.

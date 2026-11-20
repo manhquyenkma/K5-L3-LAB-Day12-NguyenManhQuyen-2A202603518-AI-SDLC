@@ -138,6 +138,30 @@ pulseRing.rotation.x = -Math.PI / 2;
 scene.add(pulseRing);
 let pulseT = 99;
 
+// C3: Vệt sáng khi lướt & gợn sương khi đáp (không thêm đèn điểm, giữ FPS)
+const dashTrail = new THREE.Mesh(
+  new THREE.PlaneGeometry(0.7, 2.2),
+  new THREE.MeshBasicMaterial({ color: PALETTE.moteHalo, transparent: true, opacity: 0, side: THREE.DoubleSide }),
+);
+dashTrail.rotation.x = -Math.PI / 2;
+scene.add(dashTrail);
+
+const landRipple = new THREE.Mesh(
+  new THREE.RingGeometry(0.55, 0.85, 24),
+  new THREE.MeshBasicMaterial({ color: PALETTE.uiText, transparent: true, opacity: 0, side: THREE.DoubleSide }),
+);
+landRipple.rotation.x = -Math.PI / 2;
+scene.add(landRipple);
+let rippleT = 99;
+let lowFx = false;
+let bridgeVisual = null;
+let bellVisual = null;
+let bellRingT = 0;
+let dawnBlend = 0;
+const skyColor = new THREE.Color(PALETTE.sky);
+const dawnColor = new THREE.Color(PALETTE.lanternLit);
+const curSkyColor = new THREE.Color(PALETTE.sky);
+
 // InstancedMesh cho đom đóm (lõi + quầng) & lá bay báo gió Đêm 3 (O6 giữ FPS >= 30)
 const MAX_MOTE_INST = 48;
 const moteCoreInst = new THREE.InstancedMesh(
@@ -188,6 +212,11 @@ function buildNightScene(nightCfg) {
   scene.remove(worldGroup);
   disposeGroup(worldGroup);
   worldGroup = new THREE.Group();
+  bridgeVisual = null;
+  bellVisual = null;
+  bellRingT = 0;
+  dawnBlend = 0;
+  scene.background.setHex(PALETTE.sky);
   lanternViews.clear();
   shadeViews.forEach((v) => scene.remove(v.g));
   shadeViews.clear();
@@ -206,14 +235,14 @@ function buildNightScene(nightCfg) {
     worldGroup.add(top, rim);
   }
 
-  // Cầu tre Đêm 2 (#6B4A2F)
+  // Cầu tre Đêm 2 (#6B4A2F) — C5: đung đưa nhẹ ở hình ảnh, không đổi va chạm Sim
   if (nightCfg.bridge) {
     const b = nightCfg.bridge;
     const w = b.xMax - b.xMin;
     const d = b.zMax - b.zMin;
-    const bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, d), mat(PALETTE.wood));
-    bridgeMesh.position.set((b.xMin + b.xMax) / 2, b.y - 0.18, (b.zMin + b.zMax) / 2);
-    worldGroup.add(bridgeMesh);
+    bridgeVisual = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, d), mat(PALETTE.wood));
+    bridgeVisual.position.set((b.xMin + b.xMax) / 2, b.y - 0.18, (b.zMin + b.zMax) / 2);
+    worldGroup.add(bridgeVisual);
   }
 
   // Các tầng cao Đêm 3
@@ -262,6 +291,7 @@ function buildNightScene(nightCfg) {
     roof.position.set(tw.cx, tw.yBase + tw.height + 1.1, tw.cz);
     const bell = new THREE.Mesh(new THREE.ConeGeometry(0.65, 1.0, 12), mat(PALETTE.gold, { metalness: 0.4, roughness: 0.35 }));
     bell.position.set(tw.cx, tw.yBase + tw.height - 0.8, tw.cz);
+    bellVisual = bell;
     worldGroup.add(body, roof, bell);
   }
 
@@ -345,6 +375,13 @@ let lastNow = performance.now();
 let lastCountdownSec = 11;
 let pendingPauseToggle = false;
 let prevGrounded = true;
+const hintsShown = new Set(); // C2: mỗi gợi ý Ông Đăng hiện tối đa 1 lần mỗi Đêm (<= 2 s)
+
+function showHintOnce(key, msg) {
+  if (hintsShown.has(key)) return;
+  hintsShown.add(key);
+  toast(msg);
+}
 
 function showOnly(id) {
   for (const ov of ['ov-menu', 'ov-intro', 'ov-pause', 'ov-settings', 'ov-result']) {
@@ -383,6 +420,8 @@ function startNight(nightId) {
   yaw = 0;
   acc = 0;
   pulseT = 99;
+  rippleT = 99;
+  hintsShown.clear();
   lastCountdownSec = 11;
   prevGrounded = true;
   pendingPauseToggle = false;
@@ -429,6 +468,7 @@ function finishNight(data) {
       $('btn-res-primary').onclick = () => openIntro(currentNight + 1, false);
     } else {
       mode = 'dawn';
+      audio.playTowerBell(); // C1: chuông tháp ngân vang đón Bình Minh
       ov.classList.add('dawn');
       $('res-title').textContent = 'Bình Minh Trên Ba Hòn Đảo!';
       $('res-desc').textContent = 'Cả ba hòn đảo Đảo Bến, Đảo Cau và Đảo Chuông đã bừng sáng. Ông Đăng mỉm cười đón ánh bình minh đầu tiên.';
@@ -528,13 +568,28 @@ function onEvent(e) {
   switch (e.name) {
     case 'mote_picked': audio.playPickup(e.data.carried); break;
     case 'deposit': audio.playDeposit(); toast(`Nạp ${e.data.amount} ánh sáng vào ${e.data.lantern_id} (${e.data.deposited}/${T.lantern_cost})`); break;
-    case 'lantern_lit': audio.playLanternLit(); toast(`🏮 Đã thắp sáng ${e.data.lantern_id}!`); break;
+    case 'lantern_lit':
+      audio.playLanternLit();
+      bellRingT = 1.6; // C5: rung chuông tháp Đêm 3 khi thắp đèn
+      toast(`🏮 Đã thắp sáng ${e.data.lantern_id}!`);
+      showHintOnce('first_lit', 'Ông Đăng: "Ánh đèn đã tạo vùng trú 6 m — Bóng Mực không thể tiến vào!"');
+      break;
     case 'pulse': audio.playPulse(); pulseT = 0; break;
     case 'dash': audio.playDash(); break;
-    case 'charm_picked': audio.playCharm(); toast('🧧 Đã nhặt Bùa Gió! Chạy nhanh & lướt liên tục'); break;
-    case 'drifter_steal': audio.playHit(); toast(`💨 Gió Lạc cướp ${e.data.amount} đom đóm!`); break;
+    case 'charm_picked':
+      audio.playCharm();
+      showHintOnce('first_charm', 'Ông Đăng: "Bùa Gió giúp chạy nhanh và Lướt (Shift) liên tục!"');
+      break;
+    case 'drifter_steal':
+      audio.playHit();
+      showHintOnce('first_steal', 'Ông Đăng: "Dùng Tỏa Sáng (F) gần Gió Lạc đang bỏ chạy để đòi lại đom đóm!"');
+      break;
     case 'drifter_drop': audio.playPickup(5); toast(`✦ Gió Lạc làm rơi ${e.data.amount} đom đóm!`); break;
-    case 'player_hit': audio.playHit(); toast(e.data.by === 'fall' ? 'Rơi xuống biển mây! −1 Ngọn Lửa' : `Bị Bóng Mực chạm! Rơi ${e.data.dropped} đom đóm`); break;
+    case 'player_hit':
+      audio.playHit();
+      if (e.data.by === 'fall') toast('Rơi xuống biển mây! −1 Ngọn Lửa');
+      else showHintOnce('first_hit', 'Ông Đăng: "Cẩn thận! Giữ 3 đom đóm và nhấn F để Tỏa Sáng đẩy lùi Bóng Mực."');
+      break;
     case 'shade_spawned': audio.playShadeSpawn(); break;
     case 'game_over': finishNight(e.data); break;
   }
@@ -686,6 +741,42 @@ function syncViews(timeSec) {
     pulseRing.material.opacity = Math.max(0, 0.85 - pulseT * 1.7);
   } else pulseRing.material.opacity = 0;
 
+  // C3: Vệt sáng khi lướt & gợn sương khi đáp (tắt khi lowFx)
+  if (!lowFx && p.dashTicks > 0) {
+    dashTrail.position.set(p.pos[0] - p.facing[0] * 1.0, p.pos[1] + 0.55, p.pos[2] - p.facing[1] * 1.0);
+    dashTrail.rotation.z = -Math.atan2(p.facing[0], p.facing[1]);
+    dashTrail.material.opacity = 0.55;
+  } else {
+    dashTrail.material.opacity = 0;
+  }
+  if (!lowFx && rippleT < 0.45) {
+    rippleT += DT * 1.5;
+    const rr = 0.6 + rippleT * 3.2;
+    landRipple.scale.set(rr, rr, 1);
+    landRipple.material.opacity = Math.max(0, 0.6 - rippleT * 1.4);
+  } else {
+    landRipple.material.opacity = 0;
+  }
+
+  // C5: Không khí từng đảo (cầu tre đung đưa hình ảnh, chuông tháp rung, Bình Minh chuyển sắc ấm)
+  if (bridgeVisual) bridgeVisual.rotation.x = Math.sin(timeSec * 2.2) * 0.025;
+  if (bellVisual) {
+    if (bellRingT > 0) {
+      bellRingT = Math.max(0, bellRingT - DT);
+      bellVisual.rotation.z = Math.sin(timeSec * 18) * 0.28 * (bellRingT / 1.6);
+    } else {
+      bellVisual.rotation.z = 0;
+    }
+  }
+  if (mode === 'dawn') {
+    dawnBlend = Math.min(1, dawnBlend + DT * 0.35);
+    curSkyColor.copy(skyColor).lerp(dawnColor, dawnBlend * 0.65);
+    scene.background.copy(curSkyColor);
+    for (const v of lanternViews.values()) {
+      v.glowMat.emissiveIntensity = Math.max(0.25, 1.5 * (1 - dawnBlend * 0.7));
+    }
+  }
+
   // HUD 7 thành phần
   $('h-flames').textContent = p.flames > 0 ? '🔥'.repeat(p.flames) : '💀';
   $('charm-badge').classList.toggle('hidden', p.charmTicks <= 0);
@@ -774,6 +865,7 @@ function frame(now) {
         pixelRatioCap = 1.0;
         renderer.setPixelRatio(1.0);
       }
+      lowFx = avg < 35;
       fpsWindowAcc = 0;
       fpsWindowFrames = 0;
     }
@@ -794,6 +886,10 @@ function frame(now) {
       const inp = readInput();
       sim.step(inp);
       if (prevGrounded && !sim.player.grounded && sim.player.vel[1] > 1) audio.playJump();
+      if (!prevGrounded && sim.player.grounded) {
+        landRipple.position.set(sim.player.pos[0], sim.player.pos[1] + 0.06, sim.player.pos[2]);
+        rippleT = 0;
+      }
       prevGrounded = sim.player.grounded;
       if (wasWarn === 0 && sim.wind.warnTicks > 0) audio.playWindWarn();
       const secLeft = Math.ceil(sim.timeLeft);

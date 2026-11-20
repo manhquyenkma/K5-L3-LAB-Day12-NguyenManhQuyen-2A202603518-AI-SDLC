@@ -61,16 +61,33 @@ export class AudioEngine {
 
   startBgm() {
     if (this.bgmTimer || this.volume <= 0) return;
-    // Thang ngũ cung êm dịu ban đêm (D4, E4, G4, A4, B4, D5, E5)
+    // C1 (Đảo hát): thang ngũ cung Web Audio — mỗi đèn thắp thêm 1 nốt hòa âm dày dần theo litCount
     const scale = [293.66, 329.63, 392.0, 440.0, 493.88, 587.33, 659.25];
     this.bgmTimer = setInterval(() => {
       if (this.volume <= 0 || !this._ensure()) return;
       const idx = this.bgmStep++ % scale.length;
-      // Nốt trầm nền
-      this._tone(146.83, 1.35, 'sine', 0.045);
-      // Giai điệu nhẹ
-      this._tone(scale[idx], 0.9, 'triangle', 0.03);
+      // Nốt trầm nền luôn có
+      this._tone(146.83, 1.35, 'sine', 0.04);
+      // Số nốt bổ sung = số đèn đã sáng (tối thiểu 1 nốt nhẹ khi 0 đèn)
+      const voices = Math.max(1, Math.min(scale.length, this.litCount));
+      for (let i = 0; i < voices; i++) {
+        const note = scale[(idx + i) % scale.length];
+        const delay = i * 95;
+        setTimeout(() => this._tone(note, 0.85, i % 2 === 0 ? 'triangle' : 'sine', 0.028 / Math.sqrt(voices)), delay);
+      }
     }, 1500);
+  }
+
+  playTowerBell() {
+    // C1: Tiếng chuông tháp Đảo Chuông khi thắng Đêm 3 (thuần Web Audio, tắt khi volume = 0)
+    if (this.volume <= 0) return;
+    this._tone(220, 2.2, 'sine', 0.22);
+    this._tone(440, 1.8, 'triangle', 0.14);
+    this._tone(659.25, 1.4, 'sine', 0.09);
+    setTimeout(() => {
+      this._tone(293.66, 2.4, 'sine', 0.2);
+      this._tone(587.33, 1.8, 'triangle', 0.12);
+    }, 520);
   }
 
   stopBgm() {

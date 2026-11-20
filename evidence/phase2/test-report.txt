@@ -32,6 +32,12 @@ Phase 2 M1 — Tuning v1.1, Contract & 3 Nights Data
   ✓ Đêm 3 (Đảo Chuông): 3 tầng + 2 dốc + tháp + bục nhảy, 7 đèn, 30 điểm đom đóm, 16 điểm Bóng Mực, 2 Bùa Gió
 
 M1: 4 đạt, 0 lỗi
+Phase 2 M10/M11 — Golden Log Byte-by-Byte Guard
+  ✓ log vàng Đêm 1: khớp 100% từng byte với evidence/golden/night1.jsonl
+  ✓ log vàng Đêm 2: khớp 100% từng byte với evidence/golden/night2.jsonl
+  ✓ log vàng Đêm 3: khớp 100% từng byte với evidence/golden/night3.jsonl
+
+Golden Guard: 3 đạt, 0 lỗi
 Phase 2 M2 — Terrain & Movement
   ✓ jump: vận tốc 7 m/s, g=-20, chỉ nhảy khi chạm đất
   ✓ dash: 14 m/s trong 12 tick, hướng mặt khi đứng yên (+Z), hồi chiêu 90 tick, giữ độ cao trên không, không bất tử
@@ -73,9 +79,9 @@ Phase 2 M6 — Schema v1.1, Pause/Resume & 12-Step Tick Order
 
 M6: 5 đạt, 0 lỗi
 Phase 2 M7 — Full-Night Performance, 3-Night Determinism & Pure Core Audit
-    [Đêm 1: 18000 tick -> 719 ms, 1026992 bytes, byte-identical PASS]
-    [Đêm 2: 19800 tick -> 769 ms, 412807 bytes, byte-identical PASS]
-    [Đêm 3: 21600 tick -> 843 ms, 1368518 bytes, byte-identical PASS]
+    [Đêm 1: 18000 tick -> 193 ms, 1026992 bytes, byte-identical PASS]
+    [Đêm 2: 19800 tick -> 213 ms, 412807 bytes, byte-identical PASS]
+    [Đêm 3: 21600 tick -> 239 ms, 1368518 bytes, byte-identical PASS]
   ✓ night-full: cả 3 đêm đầy đủ (18000/19800/21600 tick) chạy headless <= 30 s và tất định byte-by-byte
   ✓ pure-core-audit: src/ không dùng Math.random, Date, performance, DOM, I/O hay import từ public/
 
