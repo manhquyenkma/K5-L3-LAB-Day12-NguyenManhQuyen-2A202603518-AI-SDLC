@@ -76,6 +76,9 @@ function validateScenario(s, night) {
     for (const d of s.drifters) {
       if (!isObj(d) || !isVec3(d.pos)) bad('mỗi drifter cần pos [x,y,z]');
       if (d.id !== undefined && typeof d.id !== 'string') bad('drifter.id phải là chuỗi');
+      if (d.state !== undefined && typeof d.state !== 'string') bad('drifter.state phải là chuỗi');
+      if (d.stolen !== undefined && !nonNegInt(d.stolen)) bad('drifter.stolen phải là số nguyên >= 0');
+      if (d.state_ticks_left !== undefined && !nonNegInt(d.state_ticks_left)) bad('drifter.state_ticks_left phải là số nguyên >= 0');
     }
   }
   if (s.charms !== undefined) {
@@ -83,6 +86,8 @@ function validateScenario(s, night) {
     for (const c of s.charms) {
       if (!isObj(c) || !isVec3(c.pos)) bad('mỗi charm cần pos [x,y,z]');
       if (c.id !== undefined && typeof c.id !== 'string') bad('charm.id phải là chuỗi');
+      if (c.available !== undefined && typeof c.available !== 'boolean') bad('charm.available phải là boolean');
+      if (c.respawn_ticks !== undefined && !nonNegInt(c.respawn_ticks)) bad('charm.respawn_ticks phải là số nguyên >= 0');
     }
   }
   const maxL = night === 1 ? 5 : night === 2 ? 6 : 7;

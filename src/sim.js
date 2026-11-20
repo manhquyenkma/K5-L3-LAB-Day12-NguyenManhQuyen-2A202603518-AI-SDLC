@@ -158,6 +158,7 @@ export class Sim {
         respawnTicks: c.respawn_ticks || 0,
       });
     }
+    this._emit('night_start', { night: this.nightId });
   }
 
   get timeLeft() {
@@ -284,12 +285,30 @@ export class Sim {
   }
 
   step(inp = {}) {
-    if (this.state !== 'playing') return;
+    if (this.state !== 'playing' && this.state !== 'paused') return;
     this.tick++;
+
+    // Bước 1: Đọc input — xử lý pause trước; nếu vừa tạm dừng hoặc đang tạm dừng thì dừng bước tại đây
+    const pauseEdge = !!inp.pause && !this.prev.pause;
+    if (this.state === 'playing' && pauseEdge) {
+      this.prev.pause = true;
+      this.state = 'paused';
+      this._emit('paused', {});
+      return;
+    }
+    if (this.state === 'paused') {
+      this.prev.pause = !!inp.pause;
+      if (pauseEdge) {
+        this.state = 'playing';
+        this._emit('resumed', {});
+      } else {
+        return;
+      }
+    }
+
     this.simTick++;
     const p = this.player;
 
-    // Bước 1: Đọc input (cạnh lên)
     const jumpEdge = !!inp.jump && !this.prev.jump;
     const interactEdge = !!inp.interact && !this.prev.interact;
     const pulseEdge = !!inp.pulse && !this.prev.pulse;
