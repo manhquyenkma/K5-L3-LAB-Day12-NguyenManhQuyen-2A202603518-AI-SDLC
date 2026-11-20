@@ -298,7 +298,7 @@ export function createAssetPack(PALETTE) {
     lanternBody: new THREE.LatheGeometry(lanternPts, 20),
     pagodaRoof: new THREE.LatheGeometry(pagodaRoofPts, 8),
     bell: new THREE.LatheGeometry(bellPts, 18),
-    shadeBody: new THREE.LatheGeometry(shadePts, 18),
+    shadeBody: new THREE.LatheGeometry(shadePts, 12),
     shadowPlane: new THREE.PlaneGeometry(1, 1),
   };
 
@@ -539,6 +539,92 @@ export function createAssetPack(PALETTE) {
     return { g, body, bodyMat, eyeMat, aura, tendrils };
   }
 
+  // ---------- 5b. Gộp BufferGeometry nhẹ để dựng 200+ Bóng Mực bằng InstancedMesh (chỉ 5 draw calls!) ----------
+  function mergeSimpleGeos(list) {
+    let vertCount = 0;
+    const expanded = list.map((src) => {
+      const g = src.index ? src.toNonIndexed() : src.clone();
+      vertCount += g.attributes.position.count;
+      return g;
+    });
+    const pos = new Float32Array(vertCount * 3);
+    const norm = new Float32Array(vertCount * 3);
+    let offset = 0;
+    for (const g of expanded) {
+      const p = g.attributes.position.array;
+      if (!g.attributes.normal) g.computeVertexNormals();
+      const n = g.attributes.normal.array;
+      pos.set(p, offset);
+      norm.set(n, offset);
+      offset += p.length;
+      g.dispose();
+    }
+    const merged = new THREE.BufferGeometry();
+    merged.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    merged.setAttribute('normal', new THREE.BufferAttribute(norm, 3));
+    return merged;
+  }
+
+  function buildShadeInstanced(maxCount = 256) {
+    // 2 mắt hợp nhất thành 1 geometry nhẹ (16 tam giác/bóng, giữ dáng mắt sắc & tiết kiệm 12x vertex)
+    const eL = new THREE.OctahedronGeometry(0.13, 0);
+    eL.scale(1.25, 0.72, 0.6);
+    eL.rotateZ(-0.22);
+    eL.translate(-0.27, 0.12, 0.74);
+    const eR = new THREE.OctahedronGeometry(0.13, 0);
+    eR.scale(1.25, 0.72, 0.6);
+    eR.rotateZ(0.22);
+    eR.translate(0.27, 0.12, 0.74);
+    const eyesGeo = mergeSimpleGeos([eL, eR]);
+    eL.dispose(); eR.dispose();
+
+    // 6 tua mực hợp nhất thành 1 geometry duy nhất (4 mặt/tua để giữ hình khối mà nhẹ GPU)
+    const tParts = [];
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const c = new THREE.ConeGeometry(0.14, 0.85, 4);
+      c.rotateX(Math.PI);
+      c.translate(Math.cos(a) * 0.42, -0.78, Math.sin(a) * 0.42);
+      tParts.push(c);
+    }
+    const tendrilsGeo = mergeSimpleGeos(tParts);
+    tParts.forEach((g) => g.dispose());
+
+    const bodyMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: PALETTE.shadeRim,
+      emissiveIntensity: 0.58,
+      roughness: 0.42,
+      metalness: 0.15,
+    });
+    const eyeMat = new THREE.MeshBasicMaterial({ color: PALETTE.shadeRim });
+    const shadowMat = new THREE.MeshBasicMaterial({ map: textures.shadowDisc, transparent: true, alphaTest: 0.04, depthWrite: false, opacity: 0.68 });
+    const auraMat = new THREE.MeshBasicMaterial({
+      map: textures.violetGlow,
+      color: 0xffffff,
+      transparent: true,
+      alphaTest: 0.04,
+      opacity: 0.48,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const bodyInst = new THREE.InstancedMesh(geos.shadeBody, bodyMat, maxCount);
+    const tendrilInst = new THREE.InstancedMesh(tendrilsGeo, bodyMat, maxCount);
+    const eyeInst = new THREE.InstancedMesh(eyesGeo, eyeMat, maxCount);
+    const shadowInst = new THREE.InstancedMesh(geos.shadowPlane, shadowMat, maxCount);
+    const auraInst = new THREE.InstancedMesh(geos.shadowPlane, auraMat, maxCount);
+
+    for (const im of [bodyInst, tendrilInst, eyeInst, shadowInst, auraInst]) {
+      im.count = 0;
+      im.frustumCulled = false;
+    }
+
+    const group = new THREE.Group();
+    group.add(bodyInst, tendrilInst, eyeInst, shadowInst, auraInst);
+    return { group, bodyInst, tendrilInst, eyeInst, shadowInst, auraInst, bodyMat, eyeMat, auraMat, maxCount };
+  }
+
   // ---------- 6. Tạo Gió Lạc (dải lụa 7 đốt bay mềm mại + vòng gió xoáy) ----------
   function buildDrifter() {
     const g = new THREE.Group();
@@ -737,5 +823,5 @@ export function createAssetPack(PALETTE) {
     }
   }
 
-  return { textures, geos, makeContactShadow, buildPlayer, buildLantern, buildShade, buildDrifter, buildCharm, addScenery };
+  return { textures, geos, makeContactShadow, buildPlayer, buildLantern, buildShade, buildShadeInstanced, buildDrifter, buildCharm, addScenery };
 }
