@@ -52,12 +52,12 @@ writeFileSync(join(outDir, 'README-RELEASE.txt'), [
 if (platform() === 'win32') {
   const r = spawnSync('powershell.exe', [
     '-NoProfile', '-NonInteractive', '-Command',
-    `Compress-Archive -Path '${outDir}\\*' -DestinationPath '${zipPath}' -Force`,
+    `Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::CreateFromDirectory('${outDir}', '${zipPath}')`,
   ], { encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`Lỗi tạo zip: ${r.stderr}`);
+  if (r.status !== 0 || !existsSync(zipPath)) throw new Error(`Lỗi tạo zip: ${r.stderr || r.stdout}`);
 } else {
   const r = spawnSync('zip', ['-r', zipPath, '.'], { cwd: outDir, encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`Lỗi tạo zip: ${r.stderr}`);
+  if (r.status !== 0 || !existsSync(zipPath)) throw new Error(`Lỗi tạo zip: ${r.stderr}`);
 }
 
 console.log(`Đã đóng gói bản phát hành v1.0.0 tại:\n  - ${outDir}\n  - ${zipPath}`);
