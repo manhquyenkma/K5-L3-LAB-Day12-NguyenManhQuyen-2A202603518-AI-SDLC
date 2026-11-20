@@ -135,6 +135,27 @@
     box-shadow: 0 0 22px rgba(255, 90, 95, 0.5);
     animation: blinkDanger 0.6s ease-in-out infinite alternate;
   }
+  /* Chế độ mù màu (TICKET-03 Phần 6): màu cảnh báo đổi #FF5A5F -> #FFFFFF kèm biểu tượng ⚠ */
+  body.colorblind { --danger: #FFFFFF; }
+  body.colorblind #h-time-pill.danger {
+    color: #FFFFFF;
+    border-color: #FFFFFF;
+    background: rgba(14, 20, 48, 0.94);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.55);
+  }
+  body.colorblind #fx-flash.hit {
+    background: radial-gradient(circle at center, transparent 42%, rgba(255, 255, 255, 0.52) 100%);
+  }
+  .mote-count-lbl {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold);
+    margin-left: 6px;
+    padding-left: 8px;
+    border-left: 1px solid rgba(242, 193, 78, 0.35);
+    font-variant-numeric: tabular-nums;
+  }
+  .cb-toggle { width: 20px; height: 20px; accent-color: #00B3FF; cursor: pointer; }
   @keyframes blinkDanger {
     from { opacity: 1; transform: scale(1); }
     to { opacity: 0.55; transform: scale(1.03); }
@@ -488,11 +509,11 @@
     <div class="glass-pill hidden" id="wind-badge">🍃 Gió mạnh</div>
   </div>
   <div id="hud-tc">
-    <div class="glass-pill" id="h-time-pill">🌙 <span id="h-time">05:00</span></div>
+    <div class="glass-pill" id="h-time-pill"><span id="h-time-ico">🌙</span> <span id="h-time">04:00</span></div>
     <div id="h-night-name">Đêm 1 — Đảo Bến</div>
   </div>
   <div id="hud-tr">
-    <div class="glass-pill">🏮 <span class="lantern-val" id="h-lit">0/5</span></div>
+    <div class="glass-pill">🏮 <span class="lantern-val" id="h-lit">0/5 (≥3)</span></div>
     <div class="glass-pill">⭐ <span class="score-val" id="h-score">0</span></div>
   </div>
   <div id="hud-bc">
@@ -537,19 +558,19 @@
     </div>
     <div class="island-grid">
       <button class="island-card" data-night="1">
-        <span class="ic-num">Đêm 1 · 5:00</span>
+        <span class="ic-num">Đêm 1 · 4:00</span>
         <span class="ic-name">Đảo Bến</span>
-        <span class="ic-meta">5 Đèn · Đảo tròn</span>
+        <span class="ic-meta">Giữ ≥ 3/5 Đèn tới bình minh</span>
       </button>
       <button class="island-card" data-night="2">
-        <span class="ic-num">Đêm 2 · 5:30</span>
+        <span class="ic-num">Đêm 2 · 4:30</span>
         <span class="ic-name">Đảo Cau</span>
-        <span class="ic-meta">6 Đèn · Cầu tre · Gió Lạc</span>
+        <span class="ic-meta">Giữ ≥ 4/6 Đèn · Cầu tre</span>
       </button>
       <button class="island-card" data-night="3">
-        <span class="ic-num">Đêm 3 · 6:00</span>
+        <span class="ic-num">Đêm 3 · 5:00</span>
         <span class="ic-name">Đảo Chuông</span>
-        <span class="ic-meta">7 Đèn · 3 Tầng · Gió mạnh</span>
+        <span class="ic-meta">Giữ ≥ 5/7 Đèn · 3 Tầng</span>
       </button>
     </div>
   </div>
@@ -596,6 +617,10 @@
       <label for="set-sens">Độ nhạy chuột</label>
       <input id="set-sens" type="range" min="10" max="100" step="5">
       <span id="set-sens-val">35%</span>
+    </div>
+    <div class="setting-row">
+      <label for="set-cb">Bảng màu dễ phân biệt</label>
+      <input id="set-cb" class="cb-toggle" type="checkbox">
     </div>
     <div class="btn-row">
       <button class="primary" id="btn-settings-back">Quay lại</button>

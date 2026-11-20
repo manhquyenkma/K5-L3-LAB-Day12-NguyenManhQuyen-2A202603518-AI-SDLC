@@ -22,18 +22,20 @@ export const PALETTE = {
   moteHalo: 0xffe58a,
   shadeBody: 0x120a1a,
   shadeRim: 0x7a3cff,
+  shadeRimColorblind: 0x00b3ff, // TICKET-03 Phần 6: chế độ mù màu (#00B3FF)
   shadeStun: 0x3a3450,
   mayRobe: 0xe8e2d0,
   mayScarfCharm: 0xc8102e,
   gold: 0xf2c14e,
   drifter: 0x8fa3b8,
   danger: 0xff5a5f,
+  dangerColorblind: 0xffffff,
   uiText: 0xf5f1e6,
 };
 
 const $ = (id) => document.getElementById(id);
 
-// ---------- Cài đặt lưu bền vững (localStorage) ----------
+// ---------- Cài đặt lưu bền vững (localStorage, gồm Bảng màu dễ phân biệt) ----------
 const SETTINGS_KEY = 'ddl_settings_v1';
 function loadSettings() {
   try {
@@ -43,26 +45,33 @@ function loadSettings() {
       return {
         volume: Math.max(0, Math.min(1, Number(s.volume ?? 0.7))),
         mouseSens: Math.max(0.1, Math.min(1, Number(s.mouseSens ?? 0.35))),
+        colorblind: !!s.colorblind,
       };
     }
   } catch { /* bỏ qua */ }
-  return { volume: 0.7, mouseSens: 0.35 };
+  return { volume: 0.7, mouseSens: 0.35, colorblind: false };
 }
 function saveSettings(s) {
   try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch { /* noop */ }
 }
 const settings = loadSettings();
+document.body.classList.toggle('colorblind', settings.colorblind);
 const audio = new AudioEngine(settings.volume);
 
-// ---------- HUD đom đóm & SVG Ngọn Lửa ----------
+// ---------- HUD đom đóm động (10 -> 20 theo sức chứa tăng dần) & SVG Ngọn Lửa ----------
 const moteBar = $('mote-bar');
 const moteSlots = [];
-for (let i = 0; i < T.carry_capacity; i++) {
+for (let i = 0; i < T.capacity_max; i++) {
   const d = document.createElement('div');
   d.className = 'mote-slot';
+  if (i >= T.carry_capacity) d.style.display = 'none';
   moteBar.appendChild(d);
   moteSlots.push(d);
 }
+const moteCountLbl = document.createElement('span');
+moteCountLbl.className = 'mote-count-lbl';
+moteCountLbl.textContent = `0/${T.carry_capacity}`;
+moteBar.appendChild(moteCountLbl);
 
 const FLAME_SVG = `<svg width="18" height="20" viewBox="0 0 20 22" fill="none"><path d="M10 1.5C10 1.5 16.5 7.2 16.5 12.8C16.5 16.9 13.6 20 10 20C6.4 20 3.5 16.9 3.5 12.8C3.5 9.6 5.4 6.7 7.1 4.9C7.1 7.1 8.4 8.2 9.2 8.2C8.6 5.8 10 1.5 10 1.5Z" fill="#FFB347"/><path d="M10 9.5C10 9.5 13 12.3 13 14.9C13 16.8 11.7 18.2 10 18.2C8.3 18.2 7 16.8 7 14.9C7 12.3 10 9.5 10 9.5Z" fill="#FFF6C2"/></svg>`;
 let lastFlamesRendered = -1;
@@ -618,6 +627,7 @@ function openSettings(from) {
   $('set-vol-val').textContent = `${Math.round(settings.volume * 100)}%`;
   $('set-sens').value = String(Math.round(settings.mouseSens * 100));
   $('set-sens-val').textContent = `${Math.round(settings.mouseSens * 100)}%`;
+  $('set-cb').checked = !!settings.colorblind;
   showOnly('ov-settings');
 }
 $('btn-menu-settings').onclick = () => openSettings('menu');
@@ -633,6 +643,11 @@ $('set-sens').oninput = (e) => {
   const v = Number(e.target.value) / 100;
   settings.mouseSens = v;
   $('set-sens-val').textContent = `${Math.round(v * 100)}%`;
+  saveSettings(settings);
+};
+$('set-cb').onchange = (e) => {
+  settings.colorblind = !!e.target.checked;
+  document.body.classList.toggle('colorblind', settings.colorblind);
   saveSettings(settings);
 };
 $('btn-settings-back').onclick = () => {
@@ -677,15 +692,24 @@ function readInput() {
 }
 
 function onEvent(e) {
+  const warnPrefix = settings.colorblind ? '⚠ ' : '';
   switch (e.name) {
     case 'mote_picked': audio.playPickup(e.data.carried); break;
-    case 'deposit': audio.playDeposit(); toast(`Nạp ${e.data.amount} ánh sáng vào ${e.data.lantern_id} (${e.data.deposited}/${T.lantern_cost})`); break;
+    case 'deposit': audio.playDeposit(); toast(`Nạp ${e.data.amount} ánh sáng vào ${e.data.lantern_id}`); break;
+    case 'refuel': audio.playDeposit(); toast(`🛢 Châm dầu ${e.data.lantern_id}: ${e.data.fuel}%`); break;
     case 'lantern_lit':
       audio.playLanternLit();
       flashScreen('lit');
       bellRingT = 1.6;
-      toast(`🏮 Đã thắp sáng ${e.data.lantern_id}!`);
-      showHintOnce('first_lit', 'Ông Đăng: "Ánh đèn đã tạo vùng trú 6 m — Bóng Mực không thể tiến vào!"');
+      toast(e.data.relight ? `🏮 Đã thắp lại ${e.data.lantern_id}! (+40 · Sức chứa ${sim.playerCapacity})` : `🏮 Đã thắp sáng ${e.data.lantern_id}! (+100 · Sức chứa ${sim.playerCapacity})`);
+      showHintOnce('first_lit', 'Ông Đăng: "Hãy châm dầu khi đèn xuống thấp — giữ đủ đèn tới bình minh!"');
+      break;
+    case 'lantern_out':
+      audio.playHit();
+      toast(`${warnPrefix}Đèn ${e.data.lantern_id} đã cạn dầu và tắt! (Thắp lại chỉ cần 5 đom đóm)`);
+      break;
+    case 'fuel_drain':
+      toast(`${warnPrefix}Bóng Mực đang hút dầu đèn ${e.data.lantern_id} (${e.data.fuel}%)!`);
       break;
     case 'pulse': audio.playPulse(); pulseT = 0; shakeAmt = 0.25; break;
     case 'dash': audio.playDash(); break;
@@ -703,8 +727,8 @@ function onEvent(e) {
       audio.playHit();
       flashScreen('hit');
       shakeAmt = 0.45;
-      if (e.data.by === 'fall') toast('Rơi xuống biển mây! −1 Ngọn Lửa');
-      else showHintOnce('first_hit', 'Ông Đăng: "Cẩn thận! Giữ 3 đom đóm và nhấn F để Tỏa Sáng đẩy lùi Bóng Mực."');
+      if (e.data.by === 'fall') toast(`${warnPrefix}Rơi xuống biển mây! −1 Ngọn Lửa`);
+      else showHintOnce('first_hit', `${warnPrefix}Ông Đăng: "Cẩn thận! Giữ 3 đom đóm và nhấn F để Tỏa Sáng đẩy lùi Bóng Mực."`);
       break;
     case 'shade_spawned': audio.playShadeSpawn(); break;
     case 'game_over': finishNight(e.data); break;
@@ -734,6 +758,8 @@ function syncViews(timeSec) {
   tex.cloudSea.offset.y = (timeSec * 0.004) % 1;
   ambientDust.position.y = Math.sin(timeSec * 0.6) * 0.4;
 
+  const blink1Hz = 0.5 + 0.5 * Math.sin(timeSec * Math.PI * 2); // nhấp nháy chậm 1 Hz khi fuel < 30
+
   for (const L of sim.lanterns) {
     if (L.lit) { litCount++; litList.push(L); }
     else {
@@ -742,15 +768,42 @@ function syncViews(timeSec) {
     }
     const v = lanternViews.get(L.id);
     if (!v) continue;
-    const prog = L.lit ? 1 : L.deposited / T.lantern_cost;
+    const cost = L.everLit ? T.relight_cost : T.lantern_cost;
+    const prog = L.lit ? 1 : L.deposited / cost;
+    const fuelPct = L.lit ? (L.fuelU / 6000) : 0;
+    const lowFuel = L.lit && L.fuelU < T.low_fuel_threshold * 60;
+
+    // Phân biệt đèn tắt/sáng không cần màu (TICKET-03 §6): đèn tắt xẹp 20% + giấy rách; đèn sáng căng phồng + giấy lành
+    const wantMap = L.lit ? tex.lanternSilk : tex.lanternSilkTorn;
+    if (v.glowMat.map !== wantMap) {
+      v.glowMat.map = wantMap;
+      v.glowMat.needsUpdate = true;
+    }
+    v.body.scale.set(L.lit ? 1 : 1.06, L.lit ? 1 : 0.8, L.lit ? 1 : 1.06);
+
+    const pulseMul = lowFuel ? (0.35 + 0.65 * blink1Hz) : 1;
     v.glowMat.color.setHex(L.lit ? PALETTE.lanternLit : PALETTE.lanternOff);
     v.glowMat.emissive.setHex(L.lit ? PALETTE.lanternLit : PALETTE.lanternOff);
-    v.glowMat.emissiveIntensity = L.lit ? 1.6 + Math.sin(timeSec * 3.2 + L.pos[0]) * 0.16 : 0.15 + prog * 0.72;
-    v.core.material.opacity = L.lit ? 0.96 : prog * 0.45;
-    v.halo.material.opacity = L.lit ? 0.78 + Math.sin(timeSec * 2.5 + L.pos[2]) * 0.1 : prog * 0.35;
+    v.glowMat.emissiveIntensity = L.lit ? (1.6 * pulseMul) : (0.15 + prog * 0.72);
+    v.core.material.opacity = L.lit ? (0.96 * pulseMul) : prog * 0.45;
+    v.halo.material.opacity = L.lit ? ((0.78 + Math.sin(timeSec * 2.5 + L.pos[2]) * 0.1) * pulseMul) : prog * 0.35;
     v.lanternGroup.rotation.z = Math.sin(timeSec * 1.5 + L.pos[0]) * 0.04;
-    v.ring.material.opacity = L.lit ? 0.42 + Math.sin(timeSec * 2.0) * 0.08 : 0;
-    if (L.lit) v.ring.rotation.z = timeSec * 0.14;
+    // Vùng an toàn chỉ tồn tại khi đèn sáng VÀ fuel >= 30
+    const safeActive = L.lit && !lowFuel;
+    v.ring.material.opacity = safeActive ? (0.42 + Math.sin(timeSec * 2.0) * 0.08) : 0;
+    if (safeActive) v.ring.rotation.z = timeSec * 0.14;
+
+    // Thanh dầu 3D trên đèn đang sáng (nhấp nháy 1 Hz khi fuel < 30)
+    v.fuelBarGroup.visible = L.lit;
+    if (L.lit) {
+      v.fuelBarGroup.lookAt(camera.position);
+      const frac = Math.max(0.01, Math.min(1, fuelPct));
+      v.fuelFill.scale.x = frac;
+      v.fuelFill.position.x = -(1 - frac) * 0.89;
+      v.fuelFillMat.color.setHex(lowFuel ? (settings.colorblind ? PALETTE.dangerColorblind : PALETTE.danger) : PALETTE.lanternLit);
+      v.fuelFillMat.opacity = lowFuel ? (0.3 + 0.7 * blink1Hz) : 1;
+      v.fuelFillMat.transparent = lowFuel;
+    }
   }
 
   // Công thức ánh sáng môi trường bắt buộc: 0.15 + 0.55 * (đèn sáng / tổng đèn)
@@ -786,19 +839,24 @@ function syncViews(timeSec) {
   moteCoreInst.instanceMatrix.needsUpdate = true;
   moteHaloInst.instanceMatrix.needsUpdate = true;
 
-  // Bóng Mực (linh hồn giọt mực + 6 tua mực uốn lượn)
+  // Bóng Mực (hỗ trợ trạng thái drain + chế độ mù màu #00B3FF cho viền & mắt)
+  const rimHex = settings.colorblind ? PALETTE.shadeRimColorblind : PALETTE.shadeRim;
+  const eyeHex = settings.colorblind ? PALETTE.shadeRimColorblind : PALETTE.uiText;
   const liveS = new Set();
   for (const z of sim.shades) {
     liveS.add(z.id);
     let v = shadeViews.get(z.id);
     if (!v) { v = assets.buildShade(); scene.add(v.g); shadeViews.set(z.id, v); }
     const stunned = z.state === 'stunned';
-    v.g.position.set(z.pos[0], z.pos[1] + Math.sin(timeSec * 3.5 + z.pos[0]) * 0.14, z.pos[2]);
-    v.g.scale.set(stunned ? 1.2 : 1, stunned ? 0.45 : 1, stunned ? 1.2 : 1);
+    const draining = z.state === 'drain';
+    v.g.position.set(z.pos[0], z.pos[1] + Math.sin(timeSec * (draining ? 7 : 3.5) + z.pos[0]) * 0.14, z.pos[2]);
+    v.g.scale.set(stunned ? 1.2 : 1, stunned ? 0.45 : (draining ? 1.12 : 1), stunned ? 1.2 : 1);
     v.bodyMat.color.setHex(stunned ? PALETTE.shadeStun : PALETTE.shadeBody);
-    v.bodyMat.emissive.setHex(stunned ? PALETTE.shadeStun : PALETTE.shadeRim);
-    v.bodyMat.emissiveIntensity = stunned ? 0.22 : 0.52 + Math.sin(timeSec * 7) * 0.1;
-    v.aura.material.opacity = stunned ? 0.18 : 0.58;
+    v.bodyMat.emissive.setHex(stunned ? PALETTE.shadeStun : rimHex);
+    v.bodyMat.emissiveIntensity = stunned ? 0.22 : (draining ? 0.95 : 0.52 + Math.sin(timeSec * 7) * 0.1);
+    v.eyeMat.color.setHex(eyeHex);
+    v.aura.material.color.setHex(settings.colorblind ? PALETTE.shadeRimColorblind : 0xffffff);
+    v.aura.material.opacity = stunned ? 0.18 : (draining ? 0.85 : 0.58);
     for (let i = 0; i < v.tendrils.length; i++) {
       const td = v.tendrils[i];
       td.mesh.rotation.z = Math.sin(timeSec * 6 + td.phase) * 0.26;
@@ -938,18 +996,24 @@ function syncViews(timeSec) {
     }
   }
 
-  // HUD 7 thành phần
+  // HUD 7 thành phần (TICKET-03: sức chứa động carried/capacity, ngưỡng đèn bình minh, cảnh báo ⚠ mù màu)
   renderFlames(p.flames);
   $('charm-badge').classList.toggle('hidden', p.charmTicks <= 0);
   if (p.charmTicks > 0) $('h-charm').textContent = `${(p.charmTicks / TPS).toFixed(1)}s`;
+  const timeDanger = sim.timeLeft <= 30;
+  $('h-time-ico').textContent = (timeDanger && settings.colorblind) ? '⚠' : '🌙';
   $('h-time').textContent = fmt(sim.timeLeft);
-  $('h-time-pill').classList.toggle('danger', sim.timeLeft <= 30);
-  $('h-lit').textContent = `${litCount}/${sim.lanterns.length}`;
+  $('h-time-pill').classList.toggle('danger', timeDanger);
+  const winNeed = Math.ceil(T.win_ratio * sim.lanterns.length);
+  $('h-lit').textContent = `${litCount}/${sim.lanterns.length} (≥${winNeed})`;
   $('h-score').textContent = String(sim.score);
 
+  const cap = sim.playerCapacity;
   for (let i = 0; i < moteSlots.length; i++) {
+    moteSlots[i].style.display = i < cap ? '' : 'none';
     moteSlots[i].classList.toggle('filled', i < p.carried);
   }
+  moteCountLbl.textContent = `${p.carried}/${cap}`;
 
   const dashCooling = p.dashCd > 0 && p.charmTicks <= 0;
   $('sk-dash').classList.toggle('cooling', dashCooling);
@@ -961,16 +1025,23 @@ function syncViews(timeSec) {
   $('cd-pulse').textContent = p.pulseCd > 0 ? `${(p.pulseCd / TPS).toFixed(1)}s` : p.carried < T.pulse_cost ? `Cần ${T.pulse_cost}✦` : 'Sẵn sàng';
 
   let nearLantern = null;
+  let nearDist = Infinity;
   for (const L of sim.lanterns) {
-    if (L.lit) continue;
-    if (Math.hypot(L.pos[0] - p.pos[0], L.pos[2] - p.pos[2]) <= T.interact_radius && Math.abs(L.pos[1] - p.pos[1]) <= X.interact_dy) {
+    if (L.lit && L.fuelU >= T.fuel_max * TPS) continue;
+    const d = Math.hypot(L.pos[0] - p.pos[0], L.pos[2] - p.pos[2]);
+    if (d <= T.interact_radius && Math.abs(L.pos[1] - p.pos[1]) <= X.interact_dy && d < nearDist) {
       nearLantern = L;
-      break;
+      nearDist = d;
     }
   }
   const promptEl = $('interact-prompt');
   if (nearLantern && mode === 'playing') {
-    promptEl.textContent = `E — Nạp ánh sáng (${nearLantern.deposited}/${T.lantern_cost})`;
+    if (nearLantern.lit) {
+      promptEl.textContent = `E — Châm dầu ${nearLantern.id} (${Math.round(nearLantern.fuelU / 60)}%)`;
+    } else {
+      const cost = nearLantern.everLit ? T.relight_cost : T.lantern_cost;
+      promptEl.textContent = `E — ${nearLantern.everLit ? 'Thắp lại' : 'Nạp ánh sáng'} (${nearLantern.deposited}/${cost})`;
+    }
     promptEl.classList.remove('hidden');
   } else {
     promptEl.classList.add('hidden');

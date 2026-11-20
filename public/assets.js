@@ -137,6 +137,34 @@ export function createAssetPack(PALETTE) {
       }
     }),
 
+    // Giấy đèn lồng tắt có vết rách răng cưa rõ nét (TICKET-03 Phần 6: phân biệt không cần màu)
+    lanternSilkTorn: makeCanvas(256, 256, (ctx, w, h) => {
+      ctx.fillStyle = '#5B5F6E';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = 'rgba(28, 30, 42, 0.7)';
+      ctx.lineWidth = 3;
+      for (let x = 0; x <= w; x += 32) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      // Các vết rách giấy rõ rệt (lỗ đen răng cưa + viền giấy sờn)
+      const tears = [
+        [[40, 62], [74, 88], [62, 128], [86, 168], [52, 192], [32, 148], [46, 108]],
+        [[148, 48], [186, 76], [174, 122], [198, 152], [164, 184], [140, 134]],
+        [[212, 92], [240, 118], [228, 174], [202, 150]],
+      ];
+      for (const poly of tears) {
+        ctx.fillStyle = '#0E1430';
+        ctx.strokeStyle = '#9EA4B8';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(poly[0][0], poly[0][1]);
+        for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    }),
+
     // Lá Bùa Gió đỏ viền vàng có chữ triện gió
     charmPaper: makeCanvas(128, 256, (ctx, w, h) => {
       ctx.fillStyle = '#C8102E';
@@ -408,13 +436,14 @@ export function createAssetPack(PALETTE) {
     capBot.position.y = -0.88;
 
     const glowMat = new THREE.MeshStandardMaterial({
-      map: textures.lanternSilk,
+      map: textures.lanternSilkTorn,
       color: PALETTE.lanternOff,
       emissive: PALETTE.lanternOff,
       emissiveIntensity: 0.15,
-      roughness: 0.35,
+      roughness: 0.38,
     });
     const body = new THREE.Mesh(geos.lanternBody, glowMat);
+    body.scale.set(1.06, 0.8, 1.06); // đèn tắt xẹp 20%
 
     const core = new THREE.Mesh(
       new THREE.SphereGeometry(0.45, 12, 10),
@@ -435,6 +464,19 @@ export function createAssetPack(PALETTE) {
     );
     halo.scale.set(7.2, 7.2, 1);
 
+    // Thanh dầu 3D phía trên mỗi đèn đang sáng (TICKET-03 Phần 1)
+    const fuelBarGroup = new THREE.Group();
+    fuelBarGroup.position.set(0.24, 5.25, 0);
+    fuelBarGroup.visible = false;
+    const fuelBg = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.9, 0.24),
+      new THREE.MeshBasicMaterial({ color: 0x0e1430, transparent: true, opacity: 0.85, side: THREE.DoubleSide }),
+    );
+    const fuelFillMat = new THREE.MeshBasicMaterial({ color: PALETTE.lanternLit, side: THREE.DoubleSide });
+    const fuelFill = new THREE.Mesh(new THREE.PlaneGeometry(1.78, 0.15), fuelFillMat);
+    fuelFill.position.z = 0.01;
+    fuelBarGroup.add(fuelBg, fuelFill);
+
     lanternGroup.add(capTop, capBot, body, core, bead, tassel, halo);
 
     // Vòng hoa văn sen vùng an toàn 6 m
@@ -445,8 +487,8 @@ export function createAssetPack(PALETTE) {
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.06;
 
-    g.add(shadow, base1, base2, post, beam, brace, roof, finial, lanternGroup, ring);
-    return { g, lanternGroup, glowMat, core, halo, ring, pos: L.pos };
+    g.add(shadow, base1, base2, post, beam, brace, roof, finial, lanternGroup, fuelBarGroup, ring);
+    return { g, lanternGroup, body, glowMat, core, halo, ring, fuelBarGroup, fuelFill, fuelFillMat, pos: L.pos };
   }
 
   // ---------- 5. Tạo Bóng Mực (linh hồn giọt mực + 6 tua mực uốn lượn + mắt dõi theo Mây) ----------
@@ -494,7 +536,7 @@ export function createAssetPack(PALETTE) {
     eyeR.rotation.z = 0.22;
 
     g.add(shadow, body, aura, eyeL, eyeR);
-    return { g, body, bodyMat, aura, tendrils };
+    return { g, body, bodyMat, eyeMat, aura, tendrils };
   }
 
   // ---------- 6. Tạo Gió Lạc (dải lụa 7 đốt bay mềm mại + vòng gió xoáy) ----------

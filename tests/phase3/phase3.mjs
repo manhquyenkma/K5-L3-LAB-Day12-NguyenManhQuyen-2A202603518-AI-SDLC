@@ -313,5 +313,18 @@ test('dynamic-capacity: sức chứa = min(20, 10 + 2*successful_lights), đèn 
   assert.equal(capMax.snaps[0].player.capacity, 20);
 });
 
+test('colorblind-and-fuel-ui: Bảng màu dễ phân biệt (#00B3FF, #FFFFFF + ⚠), đèn tắt xẹp 20% + giấy rách, thanh dầu & nhấp nháy 1 Hz', () => {
+  const html = readFileSync(join(root, 'public/index.html'), 'utf8');
+  const mainJs = readFileSync(join(root, 'public/main.js'), 'utf8');
+  const assetsJs = readFileSync(join(root, 'public/assets.js'), 'utf8');
+  assert.ok(html.includes('Bảng màu dễ phân biệt'), 'thiếu cài đặt Bảng màu dễ phân biệt');
+  assert.ok(html.includes('id="set-cb"'), 'thiếu checkbox #set-cb');
+  assert.ok(html.includes('body.colorblind') && html.includes('#FFFFFF'), 'thiếu màu cảnh báo #FFFFFF cho mù màu');
+  assert.ok(mainJs.includes('0x00b3ff'), 'thiếu màu Bóng Mực #00B3FF cho mù màu');
+  assert.ok(mainJs.includes('⚠'), 'thiếu biểu tượng ⚠ cho cảnh báo mù màu');
+  assert.ok(assetsJs.includes('lanternSilkTorn') && mainJs.includes('0.8'), 'thiếu đèn tắt xẹp 20% và giấy rách');
+  assert.ok(assetsJs.includes('fuelBarGroup') && mainJs.includes('blink1Hz'), 'thiếu thanh dầu đèn và nhấp nháy 1 Hz');
+});
+
 console.log(`\nPhase 3: ${passed} đạt, ${failed} lỗi`);
 process.exit(failed ? 1 : 0);
