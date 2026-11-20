@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đảo Đèn Lồng</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0e1430; color: #f5f1e6; font-family: "Be Vietnam Pro", "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+  #hud { position: fixed; inset: 12px 12px auto 12px; display: flex; gap: 10px; flex-wrap: wrap; pointer-events: none; font-weight: 700; }
+  .pill { background: rgba(14, 20, 48, .72); border: 1px solid #2a3360; border-radius: 999px; padding: 6px 14px; font-size: 15px; }
+  .pill b { color: #ffb347; }
+  #toast { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); font-size: 18px; font-weight: 700; color: #ffe9b0; text-shadow: 0 0 12px #ffb347; opacity: 0; transition: opacity .25s; pointer-events: none; text-align: center; }
+  #help { position: fixed; bottom: 12px; left: 12px; right: 12px; font-size: 13px; color: #aeb3cc; pointer-events: none; text-shadow: 0 1px 3px #000; }
+  #overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; background: rgba(14, 20, 48, .82); text-align: center; padding: 24px; }
+  #overlay h1 { font-size: clamp(32px, 7vw, 56px); margin: 0; color: #ffb347; }
+  #overlay p { max-width: 52ch; color: #aeb3cc; margin: 0; line-height: 1.6; }
+  #overlay button { margin-top: 14px; font: 700 18px inherit; padding: 10px 28px; border-radius: 999px; border: 0; background: #ffb347; color: #0e1430; cursor: pointer; }
+  .hidden { display: none !important; }
+</style>
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
+</head>
+<body>
+<div id="hud">
+  <div class="pill">🔥 Lửa <b id="h-flames">3</b></div>
+  <div class="pill">✦ Ánh sáng <b id="h-carried">0/5</b></div>
+  <div class="pill">🏮 Đèn <b id="h-lit">0/5</b></div>
+  <div class="pill">⭐ Điểm <b id="h-score">0</b></div>
+  <div class="pill">🌙 Còn <b id="h-time">5:00</b></div>
+</div>
+<div id="toast"></div>
+<div id="help">WASD / mũi tên: di chuyển · Space: nhảy · E: nạp ánh sáng vào đèn · F: tỏa sáng xua Bóng Mực (tốn 1 ánh sáng) · Q/R hoặc kéo chuột: xoay camera</div>
+<div id="overlay">
+  <h1 id="o-title">Đảo Đèn Lồng</h1>
+  <p id="o-text">Sương đen đã nuốt hết ánh sáng của đảo. Hãy nhặt đom đóm, thắp lại 5 Đèn Lồng Lớn trước khi trời sáng. Bóng Mực sợ ánh đèn, nhưng chúng đuổi theo bạn.</p>
+  <button id="o-btn">Bắt đầu Đêm 1</button>
+</div>
+<script type="module" src="/main.js"></script>
+</body>
+</html>
