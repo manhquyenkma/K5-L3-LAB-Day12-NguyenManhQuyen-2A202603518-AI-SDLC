@@ -1,0 +1,27 @@
+Test Contract v1.0
+  ✓ game.contract.json khớp tuning trong mã
+  ✓ snapshot: bắt đầu tick 0, đúng nhịp, dòng cuối là end
+  ✓ dựng scenario không phát sự kiện, không cộng điểm (đèn lit sẵn)
+  ✓ di chuyển: tốc độ = player_speed, chuẩn hóa vector chéo
+  ✓ cam_yaw_deg=90 xoay hướng di chuyển (tiến -> +X)
+  ✓ nhặt đom đóm: sự kiện mote_picked, +per_mote, tick = k+1
+  ✓ sức chứa: không nhặt quá carry_capacity
+  ✓ nạp đèn: deposit + lantern_lit + điểm; interact chỉ ăn khi false→true
+  ✓ nạp đèn: ngoài interact_radius thì không nạp; nạp từng phần
+  ✓ thắng: thắp hết đèn -> game_over won/all_lit, điểm thưởng, dừng sớm
+  ✓ tỏa sáng: choáng, đẩy lùi, trừ pulse_cost, +per_stun, cooldown
+  ✓ tỏa sáng cần ánh sáng: không đom đóm thì không tỏa
+  ✓ choáng kéo dài đúng pulse_stun_s rồi quay lại chase
+  ✓ bị chạm: mất 1 lửa, rơi floor(carried*ratio), bất tử invuln_s
+  ✓ hết lửa -> thua no_flames
+  ✓ hết đêm -> thua dawn đúng tick 60
+  ✓ safe_radius: Bóng Mực không vào vùng quanh đèn, người đứng sát đèn không bị chạm
+  ✓ Bóng Mực chậm hơn người chơi và đuổi theo
+  ✓ sinh ngẫu nhiên: shade_spawned khi random_shades mặc định
+  ✓ tất định: cùng seed/scenario/inputs -> output giống hệt từng byte
+  ✓ tọa độ làm tròn tối đa 3 chữ số thập phân
+  ✓ lỗi: inputs sai định dạng -> mã 2, thông báo ở stderr
+  ✓ lỗi: thiếu tham số -> mã khác 0 (1)
+  ✓ hiệu năng: 18000 tick (5 phút) < 2 giây
+
+24 đạt, 0 lỗi
